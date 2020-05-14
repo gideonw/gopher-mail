@@ -19,3 +19,5 @@
 
 # golang output binary directory
 bin
+
+serverless.yml

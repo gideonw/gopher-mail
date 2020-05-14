@@ -1,0 +1,36 @@
+service: mail-ingress
+
+frameworkVersion: '>=1.28.0 <2.0.0'
+
+provider:
+  name: aws
+  runtime: go1.x
+  region: us-west-2
+  # memorySize: 256 # optional, in MB, default is 1024
+  # timeout: 10 # optional, in seconds, default is 6
+  versionFunctions: false # optional, default is true
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 's3:ListBucket'
+      Resource:
+        - 'arn:aws:s3:::xxxx'
+    - Effect: 'Allow'
+      Action:
+        - 's3:PutObject'
+        - 's3:GetObject'
+      Resource:
+        - 'arn:aws:s3:::xxxx/*'
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+functions:
+  mail-ingress:
+    handler: bin/mail-ingress
+    events:
+      - sns: arn:aws:sns:us-west-2:xxxxxxxxx:xxxxxxxxx
+    environment: # Function level environment variables
+      DOMAIN: xxxxxxxx.com
