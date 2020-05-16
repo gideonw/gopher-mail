@@ -8,6 +8,7 @@ provider:
   # memorySize: 256 # optional, in MB, default is 1024
   # timeout: 10 # optional, in seconds, default is 6
   versionFunctions: false # optional, default is true
+  logRetentionInDays: 14
   iamRoleStatements:
     - Effect: 'Allow'
       Action:
