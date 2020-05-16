@@ -29,9 +29,21 @@ package:
     - ./bin/**
 
 functions:
+  mailman:
+      handler: bin/mailman
+      events:
+        - httpApi: # HTTP API endpoint
+          method: POST
+          path: /send
+  mailtruck:
+    handler: bin/mailtruck
+    events:
+      - httpApi: # HTTP API endpoint
+        method: GET
+        path: /email/{user}
   mail-ingress:
     handler: bin/mail-ingress
     events:
       - sns: arn:aws:sns:us-west-2:xxxxxxxxx:xxxxxxxxx
-    environment: # Function level environment variables
+    environment: 
       DOMAIN: xxxxxxxx.com

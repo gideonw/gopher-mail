@@ -36,27 +36,9 @@ func init() {
 func Handler(ctx context.Context, event events.SNSEvent) (int, error) {
 	invokeCount = invokeCount + 1
 
-	err := parseEvent(ctx, event)
-	if err != nil {
-		return invokeCount, err
-	}
-
 	return invokeCount, nil
 }
 
 func main() {
 	lambda.Start(Handler)
-
-	// b, err := ioutil.ReadFile("../test-sns-payload.json")
-	// if err != nil {
-	// 	log.Print(err)
-	// }
-
-	// var t events.SNSEvent
-	// err = json.Unmarshal(b, &t)
-	// if err != nil {
-	// 	log.Print(err)
-	// }
-
-	// parseEvent(t)
 }
