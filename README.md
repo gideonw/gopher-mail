@@ -9,6 +9,7 @@ Simple serverless personal mail system. Use AWS free tier or cheap services.
 ---
 ## TODO
 * [ ] Create simple front end to request mail for a mailbox
+  * [x] Web skeleton
   * [ ] Add multiple user auth
   * [ ] Add sending of email
   * [ ] Add rendering of html payloads
@@ -16,6 +17,7 @@ Simple serverless personal mail system. Use AWS free tier or cheap services.
 * [ ] Create mailtruck service to send mail
 * [ ] Feature creep postman
   * [ ] Parse AWS-SES headers for virus checking and create sub-folders [spam, trash]
+  * [ ] Use markdown for email editor and MD to HTML for the html emails
 
 
 ---
