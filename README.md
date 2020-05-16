@@ -12,7 +12,6 @@ Moving parts:
 - mailtruck - sends mail via SES
 - web - vuejs spa for the user to interact with the systems above
 
----
 ## TODO
 * [ ] Create simple front end to request mail for a mailbox
   * [x] Web skeleton
@@ -28,7 +27,6 @@ Moving parts:
   * [ ] Use markdown for email editor and MD to HTML for the html emails
 
 
----
 ## Tech
 ### Build
 ```bash
