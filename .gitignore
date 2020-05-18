@@ -25,6 +25,7 @@ bin
 *.tfstate*
 terraform.tfvars
 .terraform
+terraform_override.tf
 
 # Serverless
 serverless.yml

@@ -1,10 +1,5 @@
 terraform {
   required_version = ">= 0.12"
-
-  backend "s3" {
-    bucket = "terraform-state-bucket"
-    key    = "gopher-mail.tfstate"
-  }
 }
 
 ####################################################################################
@@ -29,6 +24,24 @@ variable "sub_domain" {
   default = ""
 }
 
+# Email
+variable "email_post_office_bucket" {
+  type        = string
+  default     = ""
+  description = "S3 bucket SES uses to save emails."
+}
+
+variable "email_post_office_prefix" {
+  type        = string
+  default     = "post-office"
+  description = "S3 prefix SES uses to save emails."
+}
+
+variable "email_ses_notification_topic" {
+  type = string
+
+}
+
 ####################################################################################
 # Locals
 locals {
@@ -42,6 +55,14 @@ locals {
     App = "gopher-mail"
   }
 }
+
+####################################################################################
+# Outputs
+
+output "lambda_archive_bucket" {
+  value = aws_s3_bucket.lambda_archive.bucket
+}
+
 
 ####################################################################################
 # Provider
@@ -59,21 +80,6 @@ provider "aws" {
 ####################################################################################
 # Resources
 ####################################################################################
-
-# Lambda related resources
-####################################################################################
-
-# Lambda zip archive bucket
-resource "aws_s3_bucket" "lambda_archive" {
-  bucket_prefix = "${local.app_name}-lambda-archive-"
-  acl           = "private"
-
-  versioning {
-    enabled = true
-  }
-
-  tags = local.tags
-}
 
 # Gopher mail web resources
 ####################################################################################
@@ -208,5 +214,178 @@ resource "aws_route53_record" "gopher_mail" {
   }
 }
 
-# Gopher mail lambda resources
+# SES
+####################################################################################
+
+# TODO: Add SES configuration to support creating gopher-mail from scratch.
+
+
+
+# Lambda related resources
+####################################################################################
+
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    sid    = "AllowLambdaAssumeRole"
+    effect = "Allow"
+
+    actions = [
+      "sts::AssumeRole",
+    ]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "lambda_logging" {
+  statement {
+    sid    = "AllowLambdaLogging"
+    effect = "Allow"
+
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = [
+      "arn:aws:logs:*:*:*"
+    ]
+  }
+}
+
+# Lambda zip archive bucket
+resource "aws_s3_bucket" "lambda_archive" {
+  bucket_prefix = "${local.app_name}-lambda-archive-"
+  acl           = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  tags = local.tags
+}
+
+# Postmaster Lambda
+data "aws_iam_policy_document" "postmaster" {
+  statement {
+    sid    = "S3ReadWrite"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "${var.email_post_office_bucket}/*"
+    ]
+  }
+
+  statement {
+    sid    = "S3List"
+    effect = "Allow"
+
+    actions = [
+      "s3:ListBucket",
+    ]
+    resources = [
+      var.email_post_office_bucket
+    ]
+  }
+}
+
+data "aws_s3_bucket_object" "postmaster" {
+  bucket = aws_s3_bucket.lambda_archive.id
+  key    = "postmaster/postmaster.zip"
+
+  depends_on = [
+    aws_s3_bucket_object.postmaster
+  ]
+}
+
+resource "aws_s3_bucket_object" "postmaster" {
+  bucket = aws_s3_bucket.lambda_archive.id
+  key    = "postmaster/postmaster.zip"
+
+  source = "${path.root}/../bin/postmaster.zip"
+
+  lifecycle {
+    ignore_changes = [
+      source
+    ]
+  }
+}
+
+resource "aws_cloudwatch_log_group" "postmaster" {
+  name_prefix       = "/aws/lambda/${local.app_name}-postmaster"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role" "postmaster" {
+  name = "${local.app_name}-postmaster"
+
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy" "postmaster_service_permissions" {
+  name = "postmaster-service-permissions"
+  role = aws_iam_role.postmaster.id
+
+  policy = data.aws_iam_policy_document.postmaster.json
+}
+
+resource "aws_iam_role_policy" "postmaster_log_permissions" {
+  name = "postmaster-log-permissions"
+  role = aws_iam_role.postmaster.id
+
+  policy = data.aws_iam_policy_document.lambda_logging.json
+}
+
+resource "aws_lambda_function" "postmaster" {
+  function_name = "${local.app_name}-postmaster"
+
+  s3_bucket         = aws_s3_bucket.lambda_archive.id
+  s3_key            = data.aws_s3_bucket_object.postmaster.key
+  s3_object_version = data.aws_s3_bucket_object.postmaster.version_id
+
+  role = aws_iam_role.postmaster.arn
+
+  handler = "bin/postmaster"
+  runtime = "go1.x"
+
+  memory_size = 512
+
+  environment {
+    variables = {
+      DOMAIN             = var.base_domain
+      POST_OFFICE_BUCKET = var.email_post_office_bucket
+      POST_OFFICE_PREFIX = var.email_post_office_prefix
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.postmaster,
+    aws_iam_role_policy.postmaster_log_permissions,
+    aws_s3_bucket.lambda_archive
+  ]
+}
+
+resource "aws_lambda_permission" "sns_email_trigger" {
+  statement_id  = "SNSTriggerPermission"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.postmaster.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = var.email_ses_notification_topic
+}
+
+resource "aws_sns_topic_subscription" "postmaster_email_notification" {
+  topic_arn = var.email_ses_notification_topic
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.postmaster.arn
+}
+
+# API
 ####################################################################################
