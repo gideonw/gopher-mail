@@ -13,6 +13,7 @@ Moving parts:
 - web - vuejs spa for the user to interact with the systems above
 
 ## TODO
+* [x] Move to terraform for infrastructure and lambda deployment
 * [ ] Create simple front end to request mail for a mailbox
   * [x] Web skeleton
   * [ ] Add multiple user auth
@@ -29,17 +30,19 @@ Moving parts:
 
 ## Tech
 ### Build
+The build script will build each of the services into the bin folder.
+
 ```bash
 ./build.sh
 ```
-or
-```bash
-make
-```
 
 ### Deploy
-Serverless is used to deploy and configure the services.
+
+The deploy script will take the built binaries in the bin folder and create an archive for deployment to a lambda function.
+
+Terraform is used to deploy and configure the services required to glue everything together. Create a terraform.tfvars from the example in the terrafrom folder and run the command below.
 ```bash
-serverless deploy -v
+./deploy.sh
 ```
 
+If you would like to use an S3 bucket for your terraform state, there is an example override in the terraform folder. You will need to create a private S3 bucket in your account and enter the bucket name into the override file.
