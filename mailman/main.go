@@ -5,7 +5,6 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 
 	"github.com/aws/aws-sdk-go-v2/aws/external"
@@ -33,7 +32,7 @@ func init() {
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context, event events.SNSEvent) (int, error) {
+func Handler(ctx context.Context) (int, error) {
 	invokeCount = invokeCount + 1
 
 	return invokeCount, nil
