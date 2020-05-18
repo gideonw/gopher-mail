@@ -20,4 +20,11 @@
 # golang output binary directory
 bin
 
+
+# Terraform
+*.tfstate*
+terraform.tfvars
+.terraform
+
+# Serverless
 serverless.yml
