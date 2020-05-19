@@ -44,7 +44,11 @@ The deploy script will take the built binaries in the bin folder and create an a
 Terraform is used to deploy and configure the services required to glue everything together. Create a terraform.tfvars from the example in the terrafrom folder and run the command below.
 ```bash
 ./deploy.sh
+
+cd terraform/
+terraform apply
 ```
+_**Note:** The `terraform apply` command will take around 10 minutes._
 
 If you would like to use an S3 bucket for your terraform state, there is an example override in the terraform folder. You will need to create a private S3 bucket in your account and enter the bucket name into the override file.
 

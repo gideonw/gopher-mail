@@ -37,11 +37,6 @@ variable "email_post_office_prefix" {
   description = "S3 prefix SES uses to save emails."
 }
 
-variable "email_ses_notification_topic" {
-  type = string
-
-}
-
 ####################################################################################
 # Locals
 locals {
@@ -50,6 +45,9 @@ locals {
 
   s3_origin_id          = "gopher-mail-web"
   api_gateway_origin_id = "gopher-mail-api"
+
+  dash_domain  = replace(var.base_domain, ".", "-")
+  email_bucket = var.email_post_office_bucket != "" ? var.email_post_office_bucket : "${local.dash_domain}-email"
 
   tags = {
     App = "gopher-mail"
@@ -63,6 +61,9 @@ output "lambda_archive_bucket" {
   value = aws_s3_bucket.lambda_archive.bucket
 }
 
+output "apigateway_invoke_url" {
+  value = aws_apigatewayv2_stage.default.invoke_url
+}
 
 ####################################################################################
 # Provider
@@ -75,6 +76,12 @@ provider "aws" {
   version = "~> 2.0"
   alias   = "east"
   region  = "us-east-1"
+}
+
+data "aws_caller_identity" "account" {}
+
+data "aws_region" "selected" {
+  name = var.aws_region
 }
 
 ####################################################################################
@@ -105,12 +112,11 @@ resource "aws_acm_certificate" "shared_certificate" {
 }
 
 resource "aws_route53_record" "certificate_validation_record" {
-  count   = 2 # 1 for the base domain, and 1 for the subject_alternative_names
   zone_id = data.aws_route53_zone.base_domain_zone.zone_id
 
-  name    = element(aws_acm_certificate.shared_certificate.domain_validation_options, count.index).resource_record_name
-  type    = element(aws_acm_certificate.shared_certificate.domain_validation_options, count.index).resource_record_type
-  records = [element(aws_acm_certificate.shared_certificate.domain_validation_options, count.index).resource_record_value]
+  name    = aws_acm_certificate.shared_certificate.domain_validation_options[0].resource_record_name
+  type    = aws_acm_certificate.shared_certificate.domain_validation_options[0].resource_record_type
+  records = [aws_acm_certificate.shared_certificate.domain_validation_options[0].resource_record_value]
 
   ttl = 60
 }
@@ -119,7 +125,7 @@ resource "aws_acm_certificate_validation" "shared_certificat_valid" {
   provider = aws.east
 
   certificate_arn         = aws_acm_certificate.shared_certificate.arn
-  validation_record_fqdns = [aws_route53_record.certificate_validation_record[0].fqdn]
+  validation_record_fqdns = [aws_route53_record.certificate_validation_record.fqdn]
 }
 
 resource "aws_cloudfront_origin_access_identity" "gopher_mail_web" {
@@ -154,7 +160,7 @@ resource "aws_s3_bucket_policy" "gopher_mail_web" {
 
 resource "aws_cloudfront_distribution" "gopher_mail" {
   origin {
-    domain_name = local.full_domain
+    domain_name = aws_s3_bucket.gopher_mail_web.bucket_regional_domain_name
     origin_id   = local.s3_origin_id
 
     s3_origin_config {
@@ -214,12 +220,154 @@ resource "aws_route53_record" "gopher_mail" {
   }
 }
 
-# SES
+# Email S3 and SES
 ####################################################################################
 
-# TODO: Add SES configuration to support creating gopher-mail from scratch.
+data "aws_iam_policy_document" "mailbox" {
+  statement {
+    sid    = "AllowSESPutObject"
+    effect = "Allow"
 
+    actions = [
+      "s3:PutObject"
+    ]
 
+    principals {
+      type        = "Service"
+      identifiers = ["ses.amazonaws.com"]
+    }
+
+    resources = [
+      "${aws_s3_bucket.mailbox.arn}/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:Referer"
+
+      values = [
+        data.aws_caller_identity.account.account_id
+      ]
+    }
+  }
+}
+
+resource "aws_s3_bucket" "mailbox" {
+  bucket_prefix = local.email_bucket
+  acl           = "private"
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
+  tags = local.tags
+}
+
+# explicitly set these in-case they are changed, on terraform apply it will be reapplied
+resource "aws_s3_bucket_public_access_block" "force_private" {
+  bucket = aws_s3_bucket.mailbox.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "ses_perms" {
+  bucket = aws_s3_bucket.mailbox.id
+  policy = data.aws_iam_policy_document.mailbox.json
+}
+
+# SES
+resource "aws_ses_domain_identity" "mail_domain" {
+  domain = var.base_domain
+}
+
+resource "aws_route53_record" "mail_domain_verification" {
+  zone_id = data.aws_route53_zone.base_domain_zone.zone_id
+  name    = "_amazonses.${var.base_domain}"
+  type    = "TXT"
+  ttl     = "1800"
+  records = [aws_ses_domain_identity.mail_domain.verification_token]
+}
+
+resource "aws_ses_domain_identity_verification" "mail_domain_identity_verified" {
+  domain = aws_ses_domain_identity.mail_domain.domain
+
+  depends_on = [aws_route53_record.mail_domain_verification]
+}
+
+resource "aws_ses_domain_dkim" "mail_domain" {
+  domain = aws_ses_domain_identity.mail_domain.domain
+}
+
+resource "aws_route53_record" "mail_domain_dkim" {
+  count = 3
+
+  zone_id = data.aws_route53_zone.base_domain_zone.zone_id
+  name    = "${element(aws_ses_domain_dkim.mail_domain.dkim_tokens, count.index)}._domainkey.${var.base_domain}"
+  type    = "CNAME"
+  ttl     = "1800"
+  records = ["${element(aws_ses_domain_dkim.mail_domain.dkim_tokens, count.index)}.dkim.amazonses.com"]
+}
+
+resource "aws_ses_domain_mail_from" "mail_domain" {
+  domain           = aws_ses_domain_identity.mail_domain.domain
+  mail_from_domain = "bounce.${aws_ses_domain_identity.mail_domain.domain}"
+}
+
+resource "aws_route53_record" "mail_domain_from_mx" {
+  zone_id = data.aws_route53_zone.base_domain_zone.zone_id
+  name    = aws_ses_domain_mail_from.mail_domain.mail_from_domain
+  type    = "MX"
+  ttl     = "1800"
+  records = ["10 feedback-smtp.${data.aws_region.selected.name}.amazonses.com"] # use data region to ensure that the region is correct
+}
+
+resource "aws_route53_record" "mail_domain_from_txt" {
+  zone_id = data.aws_route53_zone.base_domain_zone.zone_id
+  name    = aws_ses_domain_mail_from.mail_domain.mail_from_domain
+  type    = "TXT"
+  ttl     = "1800"
+  records = ["v=spf1 include:amazonses.com -all"]
+}
+
+resource "aws_ses_receipt_rule_set" "mail_domain" {
+  rule_set_name = "${local.dash_domain}-rules"
+}
+
+resource "aws_ses_receipt_rule" "mail_domain" {
+  name          = "save-to-s3"
+  rule_set_name = "${local.dash_domain}-rules"
+  recipients = [
+    var.base_domain
+  ]
+  enabled      = true
+  scan_enabled = true
+
+  s3_action {
+    position = 1
+
+    bucket_name       = aws_s3_bucket.mailbox.id
+    object_key_prefix = var.email_post_office_prefix
+    topic_arn         = aws_sns_topic.new_email.arn
+  }
+
+  depends_on = [
+    aws_s3_bucket_policy.ses_perms
+  ]
+}
+
+resource "aws_sns_topic" "new_email" {
+  name_prefix  = "${local.dash_domain}-new-email-"
+  display_name = "${local.dash_domain}-new-email"
+
+  tags = local.tags
+}
 
 # Lambda related resources
 ####################################################################################
@@ -230,7 +378,7 @@ data "aws_iam_policy_document" "lambda_assume_role" {
     effect = "Allow"
 
     actions = [
-      "sts::AssumeRole",
+      "sts:AssumeRole",
     ]
 
     principals {
@@ -250,6 +398,8 @@ data "aws_iam_policy_document" "lambda_logging" {
       "logs:CreateLogStream",
       "logs:PutLogEvents",
     ]
+
+    # TODO: Change the first star to a prefix that can be used by all lambdas
     resources = [
       "arn:aws:logs:*:*:*"
     ]
@@ -280,7 +430,7 @@ data "aws_iam_policy_document" "postmaster" {
       "s3:DeleteObject",
     ]
     resources = [
-      "${var.email_post_office_bucket}/*"
+      "${aws_s3_bucket.mailbox.arn}/*"
     ]
   }
 
@@ -292,7 +442,7 @@ data "aws_iam_policy_document" "postmaster" {
       "s3:ListBucket",
     ]
     resources = [
-      var.email_post_office_bucket
+      aws_s3_bucket.mailbox.arn
     ]
   }
 }
@@ -310,7 +460,7 @@ resource "aws_s3_bucket_object" "postmaster" {
   bucket = aws_s3_bucket.lambda_archive.id
   key    = "postmaster/postmaster.zip"
 
-  source = "${path.root}/../bin/postmaster.zip"
+  source = "${path.root}/../postmaster.zip"
 
   lifecycle {
     ignore_changes = [
@@ -353,7 +503,7 @@ resource "aws_lambda_function" "postmaster" {
 
   role = aws_iam_role.postmaster.arn
 
-  handler = "bin/postmaster"
+  handler = "postmaster"
   runtime = "go1.x"
 
   memory_size = 512
@@ -361,7 +511,7 @@ resource "aws_lambda_function" "postmaster" {
   environment {
     variables = {
       DOMAIN             = var.base_domain
-      POST_OFFICE_BUCKET = var.email_post_office_bucket
+      POST_OFFICE_BUCKET = aws_s3_bucket.mailbox.id
       POST_OFFICE_PREFIX = var.email_post_office_prefix
     }
   }
@@ -369,8 +519,11 @@ resource "aws_lambda_function" "postmaster" {
   depends_on = [
     aws_cloudwatch_log_group.postmaster,
     aws_iam_role_policy.postmaster_log_permissions,
-    aws_s3_bucket.lambda_archive
+    aws_s3_bucket.lambda_archive,
+    aws_s3_bucket_object.postmaster
   ]
+
+  tags = local.tags
 }
 
 resource "aws_lambda_permission" "sns_email_trigger" {
@@ -378,14 +531,166 @@ resource "aws_lambda_permission" "sns_email_trigger" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.postmaster.function_name
   principal     = "sns.amazonaws.com"
-  source_arn    = var.email_ses_notification_topic
+  source_arn    = aws_sns_topic.new_email.arn
 }
 
 resource "aws_sns_topic_subscription" "postmaster_email_notification" {
-  topic_arn = var.email_ses_notification_topic
+  topic_arn = aws_sns_topic.new_email.arn
   protocol  = "lambda"
   endpoint  = aws_lambda_function.postmaster.arn
 }
 
+
+# Mailman Lambda
+data "aws_iam_policy_document" "mailman" {
+  statement {
+    sid    = "S3ReadWrite"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.mailbox.arn}/*"
+    ]
+  }
+
+  statement {
+    sid    = "S3List"
+    effect = "Allow"
+
+    actions = [
+      "s3:ListBucket",
+    ]
+    resources = [
+      aws_s3_bucket.mailbox.arn
+    ]
+  }
+}
+
+data "aws_s3_bucket_object" "mailman" {
+  bucket = aws_s3_bucket.lambda_archive.id
+  key    = "mailman/mailman.zip"
+
+  depends_on = [
+    aws_s3_bucket_object.mailman
+  ]
+}
+
+resource "aws_s3_bucket_object" "mailman" {
+  bucket = aws_s3_bucket.lambda_archive.id
+  key    = "mailman/mailman.zip"
+
+  source = "${path.root}/../mailman.zip"
+
+  lifecycle {
+    ignore_changes = [
+      source
+    ]
+  }
+}
+
+resource "aws_cloudwatch_log_group" "mailman" {
+  name_prefix       = "/aws/lambda/${local.app_name}-mailman"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role" "mailman" {
+  name = "${local.app_name}-mailman"
+
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy" "mailman_service_permissions" {
+  name = "mailman-service-permissions"
+  role = aws_iam_role.mailman.id
+
+  policy = data.aws_iam_policy_document.mailman.json
+}
+
+resource "aws_iam_role_policy" "mailman_log_permissions" {
+  name = "mailman-log-permissions"
+  role = aws_iam_role.mailman.id
+
+  policy = data.aws_iam_policy_document.lambda_logging.json
+}
+
+resource "aws_lambda_function" "mailman" {
+  function_name = "${local.app_name}-mailman"
+
+  s3_bucket         = aws_s3_bucket.lambda_archive.id
+  s3_key            = data.aws_s3_bucket_object.mailman.key
+  s3_object_version = data.aws_s3_bucket_object.mailman.version_id
+
+  role = aws_iam_role.mailman.arn
+
+  handler = "mailman"
+  runtime = "go1.x"
+
+  memory_size = 512
+
+  environment {
+    variables = {
+      DOMAIN = var.base_domain
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.mailman,
+    aws_iam_role_policy.mailman_log_permissions,
+    aws_s3_bucket.lambda_archive,
+    aws_s3_bucket_object.mailman
+  ]
+
+  tags = local.tags
+}
+
+resource "aws_lambda_permission" "mailman_apigateway_invoke" {
+  statement_id  = "APIGatewayPermission"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.mailman.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.gopher_mail.execution_arn}/*"
+}
+
 # API
 ####################################################################################
+resource "aws_apigatewayv2_api" "gopher_mail" {
+  name          = "gopher-mail"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_integration" "mailman_lambda" {
+  api_id = aws_apigatewayv2_api.gopher_mail.id
+
+  integration_type   = "AWS_PROXY"
+  integration_method = "POST"
+  integration_uri    = aws_lambda_function.mailman.invoke_arn
+
+  lifecycle {
+    ignore_changes = [passthrough_behavior]
+  }
+}
+
+resource "aws_apigatewayv2_route" "mailman_get_email" {
+  api_id = aws_apigatewayv2_api.gopher_mail.id
+
+  route_key = "GET /api/email"
+  target    = "integrations/${aws_apigatewayv2_integration.mailman_lambda.id}"
+
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id = aws_apigatewayv2_api.gopher_mail.id
+  name   = "$default"
+
+  auto_deploy = true
+
+
+  # https://github.com/terraform-providers/terraform-provider-aws/issues/12893
+  lifecycle {
+    ignore_changes = [deployment_id, default_route_settings]
+  }
+}

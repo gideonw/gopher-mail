@@ -4,6 +4,4 @@ s3_bucket_prefix = "example-com"
 base_domain      = "example.com"
 sub_domain       = "gps"
 
-email_ses_notification_topic = "arn:aws:sns:us-west-2:xxx:example-com-new-email"
-email_post_office_bucket     = "example-com-email"
 email_post_office_prefix     = "post-office"
