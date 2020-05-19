@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 
 	"github.com/aws/aws-sdk-go-v2/aws/external"
@@ -15,6 +16,8 @@ var invokeCount = 0
 var s3Client *s3.Client
 var addressRegex *regexp.Regexp
 var domain string
+
+const pathPrefix = "/api"
 
 func init() {
 	domain = os.Getenv("DOMAIN")
@@ -32,10 +35,22 @@ func init() {
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context) (int, error) {
-	invokeCount = invokeCount + 1
+func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	switch event.HTTPMethod {
+	case "GET":
+		switch event.Path {
+		case pathPrefix + "/email":
+			return events.APIGatewayProxyResponse{
+				StatusCode: 200,
+				Body:       "Hello world! From: " + domain,
+			}, nil
+		}
+	}
 
-	return invokeCount, nil
+	return events.APIGatewayProxyResponse{
+		StatusCode: 500,
+		Body:       "Hello world! Go Boom From: " + domain + " path: " + event.Path,
+	}, nil
 }
 
 func main() {
