@@ -5,6 +5,7 @@ Simple serverless personal mail system. Use AWS free tier or cheap services.
 - S3
 - SNS
 - Lambda
+- API Gateway
 
 Moving parts:
 - postmaster - handles sorting of all incoming mail
@@ -46,3 +47,26 @@ Terraform is used to deploy and configure the services required to glue everythi
 ```
 
 If you would like to use an S3 bucket for your terraform state, there is an example override in the terraform folder. You will need to create a private S3 bucket in your account and enter the bucket name into the override file.
+
+## Price
+_**Note:** The following figures are preliminary and do not include data transfer rates._
+
+The following table describes the price per month.
+| Price | Service |
+| --- | --- |
+| $0.40 | AWS Secrets |
+
+Total per year: $4.80
+
+The following table describes worst case price per email, beyond the free tier.
+| Price | Service | Free Tier Limit |
+| --- | --- | --- |
+| ~ $0.00000001 | AWS Lambda | 1,000,000 |
+| ~ $0.0001 | SES | 1,000 |
+| ~ $0.000005 | S3 | 20,000 |
+
+Web UI costs for viewing one email.
+| Price | Service | Free Tier Limit |
+| --- | --- | --- |
+| ~ $0.00000004 | AWS Lambda | 1,000,000 |
+| ~ $0.000005 | S3 | 20,000 |
