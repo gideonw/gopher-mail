@@ -25,7 +25,7 @@ variable "sub_domain" {
 }
 
 # Email
-variable "email_post_office_bucket" {
+variable "email_mailbox_bucket" {
   type        = string
   default     = ""
   description = "S3 bucket SES uses to save emails."
@@ -35,6 +35,12 @@ variable "email_post_office_prefix" {
   type        = string
   default     = "post-office"
   description = "S3 prefix SES uses to save emails."
+}
+
+variable "email_mailbox_prefix" {
+  type        = string
+  default     = "mailbox"
+  description = "S3 prefix postmaster uses to sort emails."
 }
 
 ####################################################################################
@@ -47,7 +53,7 @@ locals {
   api_gateway_origin_id = "gopher-mail-api"
 
   dash_domain  = replace(var.base_domain, ".", "-")
-  email_bucket = var.email_post_office_bucket != "" ? var.email_post_office_bucket : "${local.dash_domain}-email"
+  email_bucket = var.email_mailbox_bucket != "" ? var.email_mailbox_bucket : "${local.dash_domain}-email"
 
   mailman_routes = [
     "GET /api/emails",
@@ -258,6 +264,8 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
   }
 
   tags = local.tags
+
+  depends_on = [aws_route53_record.mail_domain_verification]
 }
 
 resource "aws_route53_record" "gopher_mail" {
@@ -305,7 +313,7 @@ data "aws_iam_policy_document" "mailbox" {
 }
 
 resource "aws_s3_bucket" "mailbox" {
-  bucket_prefix = local.email_bucket
+  bucket_prefix = "${local.email_bucket}-"
   acl           = "private"
 
   server_side_encryption_configuration {
@@ -337,6 +345,8 @@ resource "aws_s3_bucket_policy" "ses_perms" {
 # SES
 resource "aws_ses_domain_identity" "mail_domain" {
   domain = var.base_domain
+
+  depends_on = [aws_lambda_function.postmaster] // Postmaster needs to be available to get sns notifications
 }
 
 resource "aws_route53_record" "mail_domain_verification" {
@@ -388,17 +398,18 @@ resource "aws_route53_record" "mail_domain_from_txt" {
   records = ["v=spf1 include:amazonses.com -all"]
 }
 
-resource "aws_ses_receipt_rule_set" "mail_domain" {
-  rule_set_name = "${local.dash_domain}-rules"
-}
+# resource "aws_ses_receipt_rule_set" "mail_domain" {
+#   rule_set_name = "${local.dash_domain}-rules"
+# }
 
 resource "aws_ses_receipt_rule" "mail_domain" {
-  name          = "save-to-s3"
-  rule_set_name = "${local.dash_domain}-rules"
+  enabled       = true
+  name          = "${local.dash_domain}-save-to-s3"
+  rule_set_name = "default-rule-set"
+
   recipients = [
     var.base_domain
   ]
-  enabled      = true
   scan_enabled = true
 
   s3_action {
@@ -522,7 +533,7 @@ resource "aws_s3_bucket_object" "postmaster" {
 }
 
 resource "aws_cloudwatch_log_group" "postmaster" {
-  name_prefix       = "/aws/lambda/${local.app_name}-postmaster"
+  name              = "/aws/lambda/${aws_lambda_function.postmaster.function_name}"
   retention_in_days = 14
 }
 
@@ -563,13 +574,14 @@ resource "aws_lambda_function" "postmaster" {
   environment {
     variables = {
       DOMAIN             = var.base_domain
-      POST_OFFICE_BUCKET = aws_s3_bucket.mailbox.id
+      MAILBOX_BUCKET     = aws_s3_bucket.mailbox.id
       POST_OFFICE_PREFIX = var.email_post_office_prefix
+      MAILBOX_PREFIX     = var.email_mailbox_prefix
     }
   }
 
   depends_on = [
-    aws_cloudwatch_log_group.postmaster,
+    # aws_cloudwatch_log_group.postmaster,
     aws_iam_role_policy.postmaster_log_permissions,
     aws_s3_bucket.lambda_archive,
     aws_s3_bucket_object.postmaster
@@ -645,7 +657,7 @@ resource "aws_s3_bucket_object" "mailman" {
 }
 
 resource "aws_cloudwatch_log_group" "mailman" {
-  name_prefix       = "/aws/lambda/${local.app_name}-mailman"
+  name              = "/aws/lambda/${aws_lambda_function.mailman.function_name}"
   retention_in_days = 14
 }
 
@@ -686,13 +698,15 @@ resource "aws_lambda_function" "mailman" {
   environment {
     variables = {
       DOMAIN           = var.base_domain
+      MAILBOX_BUCKET   = aws_s3_bucket.mailbox.id
+      MAILBOX_PREFIX   = var.email_mailbox_prefix
       CF_VERIFY_HEADER = random_string.cf_verify_header.result
       CF_VERIFY_VALUE  = random_string.cf_verify_value.result
     }
   }
 
   depends_on = [
-    aws_cloudwatch_log_group.mailman,
+    # aws_cloudwatch_log_group.mailman,
     aws_iam_role_policy.mailman_log_permissions,
     aws_s3_bucket.lambda_archive,
     aws_s3_bucket_object.mailman
