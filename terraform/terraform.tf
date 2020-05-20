@@ -349,6 +349,14 @@ resource "aws_ses_domain_identity" "mail_domain" {
   depends_on = [aws_lambda_function.postmaster] // Postmaster needs to be available to get sns notifications
 }
 
+resource "aws_route53_record" "mail_domain_inbound_mx" {
+  zone_id = data.aws_route53_zone.base_domain_zone.zone_id
+  name    = var.base_domain
+  type    = "MX"
+  ttl     = "1800"
+  records = ["10 inbound-smtp.${data.aws_region.selected.name}.amazonses.com"] # use data region to ensure that the region is correct
+}
+
 resource "aws_route53_record" "mail_domain_verification" {
   zone_id = data.aws_route53_zone.base_domain_zone.zone_id
   name    = "_amazonses.${var.base_domain}"
