@@ -83,6 +83,8 @@ provider "aws" {
   region  = "us-east-1"
 }
 
+provider "random" {}
+
 data "aws_caller_identity" "account" {}
 
 data "aws_region" "selected" {
@@ -163,6 +165,17 @@ resource "aws_s3_bucket_policy" "gopher_mail_web" {
   policy = data.aws_iam_policy_document.gopher_mail_web.json
 }
 
+resource "random_string" "cf_verify_header" {
+  length  = 16
+  special = false
+}
+
+resource "random_string" "cf_verify_value" {
+  length           = 16
+  special          = true
+  override_special = ")(-+*%$#"
+}
+
 resource "aws_cloudfront_distribution" "gopher_mail" {
   enabled = true
 
@@ -183,6 +196,11 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
   origin {
     domain_name = replace(aws_apigatewayv2_api.gopher_mail.api_endpoint, "https://", "")
     origin_id   = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}"
+
+    custom_header {
+      name  = random_string.cf_verify_header.result
+      value = random_string.cf_verify_value.result
+    }
 
     custom_origin_config {
       http_port  = "80"
@@ -667,7 +685,9 @@ resource "aws_lambda_function" "mailman" {
 
   environment {
     variables = {
-      DOMAIN = var.base_domain
+      DOMAIN           = var.base_domain
+      CF_VERIFY_HEADER = random_string.cf_verify_header.result
+      CF_VERIFY_VALUE  = random_string.cf_verify_value.result
     }
   }
 
