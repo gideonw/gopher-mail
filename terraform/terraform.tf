@@ -61,8 +61,8 @@ output "lambda_archive_bucket" {
   value = aws_s3_bucket.lambda_archive.bucket
 }
 
-output "apigateway_invoke_url" {
-  value = aws_apigatewayv2_stage.default.invoke_url
+output "apigateway_endpoint" {
+  value = aws_apigatewayv2_api.gopher_mail.api_endpoint
 }
 
 ####################################################################################
@@ -147,7 +147,7 @@ data "aws_iam_policy_document" "gopher_mail_web" {
 
 # Gopher Mail static website bucket
 resource "aws_s3_bucket" "gopher_mail_web" {
-  bucket_prefix = local.full_domain
+  bucket_prefix = "${local.full_domain}-"
   acl           = "private"
 
   tags = local.tags
@@ -159,6 +159,13 @@ resource "aws_s3_bucket_policy" "gopher_mail_web" {
 }
 
 resource "aws_cloudfront_distribution" "gopher_mail" {
+  enabled = true
+
+  is_ipv6_enabled     = true
+  comment             = "Gopher Mail cloudfront distribution that brings all parts under one domain."
+  aliases             = [local.full_domain]
+  default_root_object = "index.html"
+
   origin {
     domain_name = aws_s3_bucket.gopher_mail_web.bucket_regional_domain_name
     origin_id   = local.s3_origin_id
@@ -168,18 +175,41 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
     }
   }
 
-  enabled         = true
-  is_ipv6_enabled = true
-  comment         = "Gopher Mail cloudfront distribution that brings all parts under one domain."
+  origin {
+    domain_name = replace(aws_apigatewayv2_api.gopher_mail.api_endpoint, "https://", "")
+    origin_id   = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}"
+    origin_path = "/api"
 
-  default_root_object = "index.html"
+    custom_origin_config {
+      http_port  = "80"
+      https_port = "443"
 
-  aliases = [local.full_domain]
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
 
   default_cache_behavior {
+    target_origin_id = local.s3_origin_id
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = local.s3_origin_id
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+  }
+
+  ordered_cache_behavior {
+    target_origin_id = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}"
+    path_pattern     = "/api/*"
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
 
     forwarded_values {
       query_string = false
@@ -271,10 +301,10 @@ resource "aws_s3_bucket" "mailbox" {
 resource "aws_s3_bucket_public_access_block" "force_private" {
   bucket = aws_s3_bucket.mailbox.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_policy" "ses_perms" {
