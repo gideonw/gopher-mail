@@ -178,7 +178,6 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
   origin {
     domain_name = replace(aws_apigatewayv2_api.gopher_mail.api_endpoint, "https://", "")
     origin_id   = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}"
-    origin_path = "/api"
 
     custom_origin_config {
       http_port  = "80"
@@ -490,13 +489,13 @@ resource "aws_s3_bucket_object" "postmaster" {
   bucket = aws_s3_bucket.lambda_archive.id
   key    = "postmaster/postmaster.zip"
 
-  source = "${path.root}/../postmaster.zip"
+  source = "${path.root}/../bin/postmaster.zip"
 
-  lifecycle {
-    ignore_changes = [
-      source
-    ]
-  }
+  # lifecycle {
+  #   ignore_changes = [
+  #     source
+  #   ]
+  # }
 }
 
 resource "aws_cloudwatch_log_group" "postmaster" {
@@ -613,13 +612,13 @@ resource "aws_s3_bucket_object" "mailman" {
   bucket = aws_s3_bucket.lambda_archive.id
   key    = "mailman/mailman.zip"
 
-  source = "${path.root}/../mailman.zip"
+  source = "${path.root}/../bin/mailman.zip"
 
-  lifecycle {
-    ignore_changes = [
-      source
-    ]
-  }
+  # lifecycle {
+  #   ignore_changes = [
+  #     source
+  #   ]
+  # }
 }
 
 resource "aws_cloudwatch_log_group" "mailman" {
