@@ -17,13 +17,15 @@ var invokeCount = 0
 var s3Client *s3.Client
 var addressRegex *regexp.Regexp
 var domain string
-var postOfficeBucket string
+var mailboxBucket string
 var postOfficePrefix string
+var mailboxPrefix string
 
 func init() {
 	domain = os.Getenv("DOMAIN")
-	postOfficeBucket = os.Getenv("POST_OFFICE_BUCKET")
+	mailboxBucket = os.Getenv("MAILBOX_BUCKET")
 	postOfficePrefix = os.Getenv("POST_OFFICE_PREFIX")
+	mailboxPrefix = os.Getenv("MAILBOX_PREFIX")
 
 	addressRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_()*'.].*`)
 

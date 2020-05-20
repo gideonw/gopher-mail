@@ -57,7 +57,7 @@ func sortEmailToMailbox(ctx context.Context, srcBucket, srcObjectKey string, des
 	var errList []error
 
 	for _, prefix := range destPrefix {
-		destKey := "mailbox" + "/" + prefix + "/" + destObjectKey
+		destKey := mailboxPrefix + "/" + prefix + "/" + destObjectKey
 
 		copyInput := &s3.CopyObjectInput{
 			CopySource: aws.String(url.PathEscape(sourcePath)),
