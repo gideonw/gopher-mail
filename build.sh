@@ -14,24 +14,27 @@ cd ../mailtruck
 env GOOS=linux GOARCH=amd64 go build -o ../bin/mailtruck main.go
 cd ../
 
-# TODO: On windows require build-lambda-zip be installed.
+CMD=zip
+if [[ "$OSTYPE" == "msys" ]]; then
+    command -v build-lambda-zip >/dev/null 2>&1 || { echo >&2 "Error: build-lambda-zip is required to ensure the zip is properly formated. https://github.com/aws/aws-lambda-go#for-developers-on-windows"; exit 1; }
+    CMD="build-lambda-zip --output"
+fi
+
+echo "[INFO] Using \"$CMD\" to create lambda deployment zip."
 
 cd ./bin
 echo "[INFO] Archiving postmaster..."
-rm postmaster.zip
+rm postmaster.zip 2> /dev/null
 chmod +x postmaster 
-# zip -j postmaster.zip postmaster 
-build-lambda-zip --output postmaster.zip postmaster 
+$CMD postmaster.zip postmaster 
 
 echo "[INFO] Archiving mailman..."
-rm mailman.zip
+rm mailman.zip 2> /dev/null
 chmod +x mailman 
-# zip -j mailman.zip mailman 
-build-lambda-zip --output mailman.zip mailman 
+$CMD mailman.zip mailman 
 
 echo "[INFO] Archiving mailtruck..."
 rm mailtruck.zip
-chmod +x mailtruck
-# zip -j mailtruck.zip mailtruck 
-build-lambda-zip --output mailtruck.zip mailtruck 
+chmod +x mailtruck 2> /dev/null
+$CMD mailtruck.zip mailtruck 
 cd ../
