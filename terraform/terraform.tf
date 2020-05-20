@@ -49,6 +49,11 @@ locals {
   dash_domain  = replace(var.base_domain, ".", "-")
   email_bucket = var.email_post_office_bucket != "" ? var.email_post_office_bucket : "${local.dash_domain}-email"
 
+  mailman_routes = [
+    "GET /api/emails",
+    "GET /api/email/{emailID}",
+  ]
+
   tags = {
     App = "gopher-mail"
   }
@@ -691,6 +696,18 @@ resource "aws_apigatewayv2_api" "gopher_mail" {
   protocol_type = "HTTP"
 }
 
+resource "aws_apigatewayv2_stage" "default" {
+  api_id = aws_apigatewayv2_api.gopher_mail.id
+  name   = "$default"
+
+  auto_deploy = true
+
+  # https://github.com/terraform-providers/terraform-provider-aws/issues/12893
+  lifecycle {
+    ignore_changes = [deployment_id, default_route_settings]
+  }
+}
+
 resource "aws_apigatewayv2_integration" "mailman_lambda" {
   api_id = aws_apigatewayv2_api.gopher_mail.id
 
@@ -703,23 +720,11 @@ resource "aws_apigatewayv2_integration" "mailman_lambda" {
   }
 }
 
-resource "aws_apigatewayv2_route" "mailman_get_email" {
+resource "aws_apigatewayv2_route" "mailman_routes" {
+  count = length(local.mailman_routes)
+
   api_id = aws_apigatewayv2_api.gopher_mail.id
 
-  route_key = "GET /api/email"
+  route_key = element(local.mailman_routes, count.index)
   target    = "integrations/${aws_apigatewayv2_integration.mailman_lambda.id}"
-
-}
-
-resource "aws_apigatewayv2_stage" "default" {
-  api_id = aws_apigatewayv2_api.gopher_mail.id
-  name   = "$default"
-
-  auto_deploy = true
-
-
-  # https://github.com/terraform-providers/terraform-provider-aws/issues/12893
-  lifecycle {
-    ignore_changes = [deployment_id, default_route_settings]
-  }
 }
