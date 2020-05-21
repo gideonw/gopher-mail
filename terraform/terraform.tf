@@ -354,7 +354,7 @@ resource "aws_route53_record" "mail_domain_inbound_mx" {
   name    = var.base_domain
   type    = "MX"
   ttl     = "1800"
-  records = ["10 inbound-smtp.${data.aws_region.selected.name}.amazonses.com"] # use data region to ensure that the region is correct
+  records = ["10 inbound-smtp.${data.aws_region.selected.name}.amazonaws.com"] # use data region to ensure that the region is correct
 }
 
 resource "aws_route53_record" "mail_domain_verification" {
@@ -403,7 +403,7 @@ resource "aws_route53_record" "mail_domain_from_txt" {
   name    = aws_ses_domain_mail_from.mail_domain.mail_from_domain
   type    = "TXT"
   ttl     = "1800"
-  records = ["v=spf1 include:amazonses.com -all"]
+  records = ["v=spf1 include:amazonses.com ~all"]
 }
 
 # resource "aws_ses_receipt_rule_set" "mail_domain" {
