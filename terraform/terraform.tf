@@ -131,7 +131,7 @@ resource "aws_route53_record" "certificate_validation_record" {
   type    = aws_acm_certificate.shared_certificate.domain_validation_options[0].resource_record_type
   records = [aws_acm_certificate.shared_certificate.domain_validation_options[0].resource_record_value]
 
-  ttl = 60
+  ttl = 300
 }
 
 resource "aws_acm_certificate_validation" "shared_certificat_valid" {
