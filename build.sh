@@ -3,14 +3,17 @@
 echo "[INFO] Building postmaster..."
 
 cd postmaster
+rm ../bin/postmaster 2> /dev/null
 env GOOS=linux GOARCH=amd64 go build -o ../bin/postmaster main.go sns.go
 
 echo "[INFO] Building mailman..."
 cd ../mailman
-env GOOS=linux GOARCH=amd64 go build -o ../bin/mailman main.go
+rm ../bin/mailman 2> /dev/null
+env GOOS=linux GOARCH=amd64 go build -o ../bin/mailman main.go s3.go
 
 echo "[INFO] Building mailtruck..."
 cd ../mailtruck
+rm ../bin/mailtruck 2> /dev/null
 env GOOS=linux GOARCH=amd64 go build -o ../bin/mailtruck main.go
 cd ../
 
