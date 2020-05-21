@@ -52,6 +52,9 @@ _**Note:** The `terraform apply` command will take around 10 minutes._
 
 If you would like to use an S3 bucket for your terraform state, there is an example override in the terraform folder. You will need to create a private S3 bucket in your account and enter the bucket name into the override file.
 
+## Restrictions
+Using SES to S3 email delivery caps email size at 30MB. At a later time this can be updated to use lambdas exclusively for a payload size only limited by the HTTP protocol and the lambda memory.
+
 ## Price
 _**Note:** The following figures are preliminary and do not include data transfer rates._
 
