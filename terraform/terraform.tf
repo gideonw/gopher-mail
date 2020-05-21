@@ -56,8 +56,8 @@ locals {
   email_bucket = var.email_mailbox_bucket != "" ? var.email_mailbox_bucket : "${local.dash_domain}-email"
 
   mailman_routes = [
-    "GET /api/emails",
-    "GET /api/email/{emailID}",
+    "GET /api/{userID}/emails",
+    "GET /api/{userID}/email/{emailID}",
   ]
 
   tags = {
