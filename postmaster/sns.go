@@ -159,7 +159,8 @@ func getS3DestinationPath(ctx context.Context, msg map[string]interface{}) ([]st
 		return nil, "", fmt.Errorf("%s", "Error parsing email event while building filenames")
 	}
 
-	filename = timestamp + "_" + messageID
+	// use the messageID as the file name since we want to use the ID to request the emails
+	filename = messageID
 
 	if emailAddresses, ok := mailBody["destination"].([]interface{}); ok {
 		paths = []string{}
