@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -48,6 +49,10 @@ func init() {
 	s3Client = s3.New(cfg)
 }
 
+func main() {
+	lambda.Start(Handler)
+}
+
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	buf, _ := json.Marshal(event)
@@ -63,16 +68,31 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	switch event.HTTPMethod {
 	case "GET":
 		switch event.Resource {
-		case "/api/emails":
-			return events.APIGatewayProxyResponse{
-				StatusCode: 200,
-				Body:       "Hello world! From: " + domain + "\n\n" + event.Path,
-			}, nil
-		case "/api/email/{emailID}":
-			return events.APIGatewayProxyResponse{
-				StatusCode: 200,
-				Body:       "Hello world! From: " + domain + "\n\n" + event.Path,
-			}, nil
+		case "/api/{userID}/emails":
+			emails, err := listEmails(ctx, event.PathParameters["userID"])
+			if err != nil {
+				log.Println(err)
+				return buildErrorResponse(ctx, err), err
+			}
+
+			return buildOKResponse(ctx, false, map[string]string{
+				"Content-Type": "application/json",
+			},
+				emails,
+			), nil
+
+		case "/api/{userID}/email/{emailID}":
+			email, err := getEmailByID(ctx, event.PathParameters["userID"], event.PathParameters["emailID"])
+			if err != nil {
+				log.Println(err)
+				return buildErrorResponse(ctx, err), err
+			}
+
+			return buildOKResponse(ctx, false, map[string]string{
+				"Content-Type": "application/json",
+			},
+				email,
+			), nil
 		}
 	}
 
@@ -82,6 +102,21 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	}, nil
 }
 
-func main() {
-	lambda.Start(Handler)
+func buildErrorResponse(ctx context.Context, err error) events.APIGatewayProxyResponse {
+	return events.APIGatewayProxyResponse{
+		StatusCode: 500,
+		Body:       fmt.Sprintf("%s", err),
+	}
+}
+func buildOKResponse(ctx context.Context, cache bool, headers map[string]string, body string) events.APIGatewayProxyResponse {
+	finalHeaders := headers
+	if !cache {
+		finalHeaders["Cache-Control"] = "private"
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Headers:    finalHeaders,
+		Body:       body,
+	}
 }

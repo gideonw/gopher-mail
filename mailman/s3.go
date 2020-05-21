@@ -1,23 +1,106 @@
 package main
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"strings"
 
-func getEmailByID(ctx context.Context, ID string) (string, error) {
-	// getInput := &s3.CopyObjectInput{
-	// 	CopySource: aws.String(url.PathEscape(sourcePath)),
+	"github.com/DusanKasan/parsemail"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+)
 
-	// 	Bucket: aws.String(srcBucket),
-	// 	Key:    aws.String(destKey),
+func getEmailByID(ctx context.Context, userID, ID string) (string, error) {
+	getInput := &s3.GetObjectInput{
+		Bucket: aws.String(mailboxBucket),
+		Key:    aws.String(mailboxPrefix + "/" + userID + "/" + ID),
+	}
 
-	// 	ContentType: aws.String("application/octet-stream"),
-	// }
-	// log.Printf("Copying from \"%s\" to \"%s\"\n", sourcePath, srcBucket+"/"+destKey)
+	result, err := s3Client.GetObjectRequest(getInput).Send(ctx)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				log.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
+			default:
+				log.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			log.Println(err.Error())
+		}
 
-	// copyResp, err := s3Client.CopyObjectRequest(copyInput).Send(ctx)
-	return "", nil
+		return "", err
+	}
+
+	// Create a payload with the messageID and a nested object for the email
+	ret := make(map[string]interface{})
+	ret["messageID"] = ID
+
+	// body, err := ioutil.ReadAll(result.Body)
+	email, err := parsemail.Parse(result.Body)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	//nest the email struct onto the returned json object
+	ret["email"] = email
+
+	buf, err := json.Marshal(ret)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	return string(buf), nil
 }
 
-func listEmails(ctx context.Context, user string) ([]string, error) {
+// EmailList represents a simple json object with a single key holding the emails
+type EmailList map[string][]string
 
-	return nil, nil
+// listEmails in the user's mailbox sitting in S3.
+func listEmails(ctx context.Context, userID string) (string, error) {
+	prefix := mailboxPrefix + "/" + userID
+
+	listInput := &s3.ListObjectsV2Input{
+		Bucket: aws.String(mailboxBucket),
+		Prefix: aws.String(prefix),
+	}
+
+	result, err := s3Client.ListObjectsV2Request(listInput).Send(ctx)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				log.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
+			default:
+				log.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			log.Println(err.Error())
+		}
+
+		return "", err
+	}
+
+	ret := make(EmailList)
+	ret["emails"] = []string{}
+
+	for i := range result.Contents {
+		ret["emails"] = append(ret["emails"], strings.Replace(*result.Contents[i].Key, prefix+"/", "", 1))
+	}
+
+	buf, err := json.Marshal(ret)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	return string(buf), nil
 }
