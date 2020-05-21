@@ -1,17 +1,14 @@
 <template>
   <div>
     <div v-if="!loading">
-      <div
-        is="EmailListItem"
-        v-for="email in emails"
-        v-bind:key="email.messageID"
-        v-bind:email="email"
-      ></div>
+      <div is="EmailListItem" v-for="email in emails" v-bind:key="email" v-bind:email="email"></div>
     </div>
   </div>
 </template>
 
 <script>
+import axios from "axios";
+
 import EmailListItem from "./EmailListItem.vue";
 
 export default {
@@ -20,29 +17,15 @@ export default {
   data() {
     return {
       loading: true,
-      emails: [
-        {
-          messageID: "0001",
-          subject: "Hello"
-        },
-        {
-          messageID: "0002",
-          subject: "Hello"
-        },
-        {
-          messageID: "0003",
-          subject: "Hello"
-        }
-      ]
+      emails: []
     };
   },
-  created() {
-    window.setTimeout(
-      function() {
-        this.loading = false;
-      }.bind(this),
-      2000
-    );
+  mounted() {
+    axios.get("/api/gideon/emails").then(resp => {
+      console.log(resp);
+      this.emails = resp.data.emails;
+      this.loading = false;
+    });
   }
 };
 </script>
