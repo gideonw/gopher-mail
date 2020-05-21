@@ -147,12 +147,6 @@ func getS3DestinationPath(ctx context.Context, msg map[string]interface{}) ([]st
 		return nil, "", fmt.Errorf("%s", "Error parsing email event while building filenames")
 	}
 
-	timestamp, ok := mailBody["timestamp"].(string)
-	if !ok {
-		log.Println("Error asserting timestamp")
-		return nil, "", fmt.Errorf("%s", "Error parsing email event while building filenames")
-	}
-
 	messageID, ok := mailBody["messageId"].(string)
 	if !ok {
 		log.Println("Error asserting messageID")
