@@ -1,42 +1,27 @@
 import React from "react";
 import { Link, useRouteMatch } from "react-router-dom";
+import _ from "lodash";
+
 import "./style.css";
 
-function EmailList() {
+const EmailList = (props) => {
   let { url } = useRouteMatch();
+
+  let emailList = [];
+  _.mapKeys(props.emails, (email, messageID) => {
+    console.log(messageID);
+    emailList.push(
+      <Link key={messageID} to={`${url}/${messageID}`}>
+        <li>{messageID}</li>
+      </Link>
+    );
+  });
+
   return (
     <div id="email-list">
-      <ul className="email-list">
-        <Link to={`${url}/rendering`}>
-          <li>one</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>asd</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>oasdasdasne</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>oasdasdne</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>oaadadssdasdne</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>onasdasde</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>oaadadne</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>onadadadae</li>
-        </Link>
-        <Link to={`${url}/rendering`}>
-          <li>ocacacne</li>
-        </Link>
-      </ul>
+      <ul className="email-list">{emailList}</ul>
     </div>
   );
-}
+};
 
 export default EmailList;
