@@ -16,8 +16,8 @@
 <script>
 export default {
   name: "Email",
-  props: {
-    email: String
+  mounted() {
+    console.log("EMAIL");
   }
 };
 </script>

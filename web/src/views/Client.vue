@@ -13,6 +13,9 @@ export default {
   name: "Client",
   components: {
     MailboxList
+  },
+  created() {
+    console.log("CLIENT");
   }
 };
 </script>

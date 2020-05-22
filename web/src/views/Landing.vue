@@ -13,7 +13,7 @@ export default {
   methods: {
     handleLogin() {
       this.$store.dispatch(LOGIN);
-      this.$router.push("/i");
+      this.$router.push("/i/");
     },
     ...mapActions([LOGIN])
   }

@@ -43,6 +43,9 @@ export default {
       }.bind(this),
       2000
     );
+  },
+  mounted() {
+    console.log("MAILBOX");
   }
 };
 </script>

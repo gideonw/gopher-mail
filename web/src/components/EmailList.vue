@@ -8,19 +8,14 @@
 
 <script>
 import EmailListItem from "./EmailListItem.vue";
+import { mapState } from "vuex";
 
 export default {
   name: "EmailList",
   components: { EmailListItem },
-  data() {
-    return {
-      loading: true,
-      emails: [
-        {
-          messageID: ""
-        }
-      ]
-    };
+  computed: mapState(["emails"]),
+  mounted() {
+    console.log("EMAIL LIST");
   }
 };
 </script>

@@ -7,6 +7,9 @@ export default {
   name: "MailboxListItem",
   props: {
     mailbox: Object
+  },
+  mounted() {
+    console.log("MAILBOX LIST");
   }
 };
 </script>

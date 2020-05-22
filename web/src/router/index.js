@@ -14,16 +14,16 @@ const routes = [
     component: Landing
   },
   {
-    path: '/i/:id',
+    path: '/i',
     component: Client,
     children: [
       {
-        path: '/',
-        name: 'Client',
+        path: '',
+        name: 'EmailList',
         component: EmailList
       },
       {
-        path: '',
+        path: ':id',
         name: 'Email',
         component: Email
       }
