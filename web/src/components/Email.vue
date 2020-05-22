@@ -1,23 +1,43 @@
 <template>
   <div>
     <ul>
-      <li>{{emailObj.messageID}}</li>
-      <li>{{emailObj.email.Date}}</li>
-      <li>{{emailObj.email.To}}</li>
-      <li>{{emailObj.email.From}}</li>
-      <li>{{emailObj.email.Subject}}</li>
+      <li>{{$route.params.id}}</li>
+      <li>{{email.Date}}</li>
+      <li>{{email.To}}</li>
+      <li>{{email.From}}</li>
+      <li>{{email.Subject}}</li>
     </ul>
     <div>
-      <pre>{{emailObj.email.TextBody}}</pre>
+      <pre>{{email.TextBody}}</pre>
     </div>
   </div>
 </template>
 
 <script>
+// import { mapGetters } from "vuex";
 export default {
   name: "Email",
+  data() {
+    return {
+      email: {}
+    };
+  },
   mounted() {
     console.log("EMAIL");
+    console.log(this.$store);
+  },
+  // computed: {
+
+  // },
+  watch: {
+    route() {
+      this.updateEmail(this.$store.getters.getEmailByID(this.$route.params.id));
+    }
+  },
+  methods: {
+    updateEmail(newEmail) {
+      this.email = newEmail;
+    }
   }
 };
 </script>

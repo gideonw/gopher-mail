@@ -1,13 +1,14 @@
 <template>
-  <div>{{ key }} - {{ email.Subject }}</div>
+  <!-- <div v-on:click="openEmail()">{{ messageID }} - {{ email.Subject }}</div> -->
+  <router-link :to="`/i/${this.messageID}`">{{ messageID }} - {{ email.Subject }}</router-link>
 </template>
 
 <script>
 export default {
   name: "EmailListItem",
   props: {
-    key: String,
-    email: String
+    messageID: String,
+    email: Object
   }
 };
 </script>

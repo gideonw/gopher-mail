@@ -1,8 +1,14 @@
 <template>
   <div>
-    <!-- <div v-if="!loading"> -->
-    <div is="EmailListItem" v-for="email in emails" v-bind:key="email" v-bind:email="email"></div>
-    <!-- </div> -->
+    <div v-if="!emailLoading" class="list">
+      <div
+        is="EmailListItem"
+        v-for="(email, messageID) in emails"
+        :key="messageID"
+        :messageID="messageID"
+        :email="email"
+      ></div>
+    </div>
   </div>
 </template>
 
@@ -13,9 +19,22 @@ import { mapState } from "vuex";
 export default {
   name: "EmailList",
   components: { EmailListItem },
-  computed: mapState(["emails"]),
+  computed: mapState(["emails", "emailLoading"]),
+  watch: {
+    $route() {
+      // react to route changes...
+    }
+  },
   mounted() {
     console.log("EMAIL LIST");
   }
 };
 </script>
+
+<style scoped>
+.list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+</style>

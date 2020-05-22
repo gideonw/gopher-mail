@@ -14,6 +14,7 @@ import {
   M_LOGIN,
   M_LOGOUT,
   M_STORE_EMAIL,
+  M_LOAD_REQ_EMAIL
 } from './mutations'
 
 Vue.use(Vuex)
@@ -21,6 +22,7 @@ Vue.use(Vuex)
 const base_domain = "https://gps.gideonw.xyz"
 
 export default new Store({
+  strict: true,
   state: {
     auth: {
       valid: false,
@@ -29,6 +31,7 @@ export default new Store({
         state: 'NONE'
       }
     },
+    emailLoading: false,
     emails: {}
   },
   mutations: {
@@ -37,6 +40,9 @@ export default new Store({
     },
     [M_LOGOUT](state) {
       state.auth.valid = false;
+    },
+    [M_LOAD_REQ_EMAIL](state) {
+      state.emailLoading = true;
     },
     [M_STORE_EMAIL](state, emails) {
       console.log(emails);
@@ -48,6 +54,7 @@ export default new Store({
         _.forEach(emails, function (value) {
           state.emails[value] = {};
         });
+        state.emailLoading = false;
       }
     }
   },
@@ -61,6 +68,7 @@ export default new Store({
       context.commit(M_LOGOUT);
     },
     [LIST_EMAILS](context) {
+      context.commit(M_LOAD_REQ_EMAIL);
       axios.get(`${base_domain}/api/gideon/emails`).then(resp => {
         context.commit(M_STORE_EMAIL, resp.data.emails);
         _.forEach(resp.data.emails, function (value) {
@@ -74,6 +82,9 @@ export default new Store({
       });
     }
   },
-  modules: {
-  }
+  getters: {
+    getEmailByID: (state) => (id) => {
+      return state.emails[id];
+    }
+  },
 })

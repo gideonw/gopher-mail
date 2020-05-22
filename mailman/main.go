@@ -108,10 +108,11 @@ func buildErrorResponse(ctx context.Context, err error) events.APIGatewayProxyRe
 		Body:       fmt.Sprintf("%s", err),
 	}
 }
+
 func buildOKResponse(ctx context.Context, cache bool, headers map[string]string, body string) events.APIGatewayProxyResponse {
 	finalHeaders := headers
 	if !cache {
-		finalHeaders["Cache-Control"] = "private"
+		finalHeaders["Cache-Control"] = "private,s-maxage=15"
 	}
 
 	return events.APIGatewayProxyResponse{
