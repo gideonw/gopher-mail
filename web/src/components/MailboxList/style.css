@@ -1,0 +1,25 @@
+#mailbox-list {
+  display: flex;
+  background-color: rgba(66, 97, 117, 0.664);
+  color: white;
+  border-radius: 5px;
+
+  padding: 10px;
+}
+
+.mailboxes {
+  padding: 0px;
+  padding-left: 2px;
+  padding-right: 20px;
+  margin: 0px;
+}
+
+.mailboxes li {
+  display: block;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.mailboxes a {
+  color: white;
+}

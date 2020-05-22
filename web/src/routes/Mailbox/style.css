@@ -1,0 +1,7 @@
+.mailbox {
+  padding: 0px 20px;
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  align-items: flex-start;
+}
