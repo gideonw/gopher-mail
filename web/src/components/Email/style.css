@@ -1,0 +1,32 @@
+#email {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  background-color: rgba(66, 97, 117, 0.664);
+  color: white;
+  border-radius: 0px 5px 5px 0px;
+
+  padding-top: 10px;
+  margin: 0px;
+  margin-left: 5px;
+}
+.email {
+  padding: 0px 10px 10px 10px;
+  margin: 0px;
+  flex: 1 0 auto;
+}
+
+.email li {
+  display: flex;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  flex: 1 0 auto;
+}
+
+.email-body {
+  display: block;
+  padding: 0px 10px 10px 10px;
+  margin: 0px;
+  width: 250px;
+  color: white;
+}

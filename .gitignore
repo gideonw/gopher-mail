@@ -29,3 +29,5 @@ terraform_override.tf
 
 # Serverless
 serverless.yml
+
+node_modules
