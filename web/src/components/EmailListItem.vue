@@ -3,8 +3,6 @@
 </template>
 
 <script>
-import axios from "axios";
-
 export default {
   name: "EmailListItem",
   props: {
@@ -14,12 +12,6 @@ export default {
     return {
       emailObj: {}
     };
-  },
-  mounted() {
-    axios.get(`/api/gideon/email/${this.email}`).then(resp => {
-      console.log(resp);
-      this.emailObj = resp.data;
-    });
   }
 };
 </script>

@@ -2,23 +2,18 @@
   <div id="app">
     <Header />
     <div id="client-body">
-      <MailboxList />
-      <EmailList />
+      <router-view />
     </div>
   </div>
 </template>
 
 <script>
 import Header from "./components/Header.vue";
-import EmailList from "./components/EmailList.vue";
-import MailboxList from "./components/MailboxList.vue";
 
 export default {
   name: "App",
   components: {
-    EmailList,
-    Header,
-    MailboxList
+    Header
   }
 };
 </script>
