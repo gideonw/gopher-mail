@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 
+import { IconContext } from "react-icons";
+import { BsReply, BsReplyAll, BsForward } from "react-icons/bs";
+
 import "./style.css";
 
 const Email = () => {
@@ -37,6 +40,27 @@ const Email = () => {
   } else {
     return (
       <div id="email">
+        <div className="email-actions">
+          <IconContext.Provider
+            value={{
+              size: "1.25em",
+              style: { marginRight: "4px" },
+            }}
+          >
+            <div>
+              <BsReply />
+              Reply
+            </div>
+            <div>
+              <BsReplyAll />
+              Reply All
+            </div>
+            <div>
+              <BsForward />
+              Forward
+            </div>
+          </IconContext.Provider>
+        </div>
         <ul className="email">
           <li>id: {messageID}</li>
           <li>subject: {email.Subject}</li>
