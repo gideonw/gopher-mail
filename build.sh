@@ -4,7 +4,7 @@ echo "[INFO] Building postmaster..."
 
 cd postmaster
 rm ../bin/postmaster 2> /dev/null
-env GOOS=linux GOARCH=amd64 go build -o ../bin/postmaster main.go sns.go
+env GOOS=linux GOARCH=amd64 go build -o ../bin/postmaster main.go sns.go email.go
 
 echo "[INFO] Building mailman..."
 cd ../mailman

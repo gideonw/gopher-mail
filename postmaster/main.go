@@ -13,13 +13,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-var invokeCount = 0
 var s3Client *s3.Client
 var addressRegex *regexp.Regexp
 var domain string
 var mailboxBucket string
-var postOfficePrefix string
 var mailboxPrefix string
+var postOfficePrefix string
+
+type emailToSort struct {
+	MessageID string
+
+	SourceBucket    string
+	SourceObjectKey string
+
+	DestPrefixes  []string
+	DestObjectKey string
+
+	Errored bool
+}
 
 func init() {
 	domain = os.Getenv("DOMAIN")
@@ -41,13 +52,34 @@ func init() {
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context, event events.SNSEvent) (int, error) {
-	invokeCount = invokeCount + 1
+func Handler(ctx context.Context, event events.SNSEvent) error {
 	var lastErr error
+	emailsToProcess := []emailToSort{}
 
 	for i := range event.Records {
 		record := event.Records[i]
-		err := parseEvent(ctx, record)
+
+		// Accumulate emails in the triggering event
+		email, err := parseEvent(ctx, record)
+		if err != nil {
+			log.Println(err)
+			lastErr = err
+		}
+		emailsToProcess = append(emailsToProcess, email)
+	}
+
+	// Retrieve all of the emails in the `_errored` folder for reprocessing
+	erroredEmails, err := loadErroredEmails(ctx)
+	if err != nil {
+		log.Println(err)
+		lastErr = err
+	} else {
+		emailsToProcess = append(emailsToProcess, erroredEmails...)
+	}
+
+	// Sort the emails into their mailboxes
+	for i := range emailsToProcess {
+		err = sortEmailIntoMailbox(ctx, emailsToProcess[i])
 		if err != nil {
 			log.Println(err)
 			lastErr = err
@@ -55,10 +87,10 @@ func Handler(ctx context.Context, event events.SNSEvent) (int, error) {
 	}
 
 	if lastErr != nil {
-		return invokeCount, lastErr
+		return lastErr
 	}
 
-	return invokeCount, nil
+	return nil
 }
 
 func main() {

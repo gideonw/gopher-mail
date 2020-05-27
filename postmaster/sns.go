@@ -5,100 +5,74 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/url"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func parseEvent(ctx context.Context, record events.SNSEventRecord) error {
+func parseEvent(ctx context.Context, record events.SNSEventRecord) (emailToSort, error) {
 	log.Printf("[parseEvent] %s - %s\n", record.SNS.MessageID, record.SNS.Subject)
+	eventEmail := emailToSort{
+		Errored: true,
+	}
 
 	msg, err := parseJSON(ctx, record.SNS.Message)
 	if err != nil {
 		log.Println("Error parsing mailBody as JSON")
-		return fmt.Errorf("%s", "Error parsing email event")
+		return eventEmail, fmt.Errorf("%s", "Error parsing email event")
 	}
 
-	srcBucket, srcObjectKey, err := getS3SourcePath(ctx, msg)
+	eventEmail.MessageID, err = getMessageID(ctx, msg)
 	if err != nil {
 		log.Println("Error failed to parse incoming new email SNS event")
-		log.Println(err)
 		log.Println(record.SNS.Message)
-		return err
+		log.Println(err)
+		return eventEmail, err
 	}
 
-	destPaths, destObjectKey, err := getS3DestinationPath(ctx, msg)
+	eventEmail.SourceBucket, eventEmail.SourceObjectKey, err = getS3SourcePath(ctx, msg)
 	if err != nil {
-		if destObjectKey != "" {
-			destPaths = []string{
-				"_errored",
-			}
-		} else {
-			log.Println(err)
-			return err
-		}
+		log.Println("Error failed to parse incoming new email SNS event")
+		log.Println(record.SNS.Message)
+		log.Println(err)
+		return eventEmail, err
 	}
 
-	err = sortEmailToMailbox(ctx, srcBucket, srcObjectKey, destPaths, destObjectKey)
+	eventEmail.DestPrefixes, eventEmail.DestObjectKey, err = getS3DestinationPath(ctx, msg)
 	if err != nil {
-		return err
+		log.Println(err)
+		return eventEmail, err
 	}
 
-	log.Println("Finished processing " + srcObjectKey)
-
-	return nil
+	eventEmail.Errored = false
+	return eventEmail, nil
 }
 
-func sortEmailToMailbox(ctx context.Context, srcBucket, srcObjectKey string, destPrefix []string, destObjectKey string) error {
-	sourcePath := srcBucket + "/" + srcObjectKey
-	var errList []error
-
-	for _, prefix := range destPrefix {
-		destKey := mailboxPrefix + "/" + prefix + "/" + destObjectKey
-
-		copyInput := &s3.CopyObjectInput{
-			CopySource: aws.String(url.PathEscape(sourcePath)),
-
-			Bucket: aws.String(srcBucket),
-			Key:    aws.String(destKey),
-
-			ContentType: aws.String("application/octet-stream"),
-		}
-		log.Printf("Copying from \"%s\" to \"%s\"\n", sourcePath, srcBucket+"/"+destKey)
-
-		copyResp, err := s3Client.CopyObjectRequest(copyInput).Send(ctx)
-		if err != nil {
-			log.Println(copyResp)
-			log.Println(err)
-			// don't stop on error, track th errors and also copy to the _errored folder if we can
-			errList = append(errList, err)
-			if len(errList) == 0 {
-				destPrefix = append(destPrefix, "_errored")
-			}
-		}
-	}
-
-	// if we don't have an error copying the object we can delete the old one
-	delInput := &s3.DeleteObjectInput{
-		Bucket: aws.String(srcBucket),
-		Key:    aws.String(srcObjectKey),
-	}
-	log.Printf("Deleting object \"%s\"\n", sourcePath)
-
-	delResp, err := s3Client.DeleteObjectRequest(delInput).Send(ctx)
+func parseJSON(ctx context.Context, body string) (map[string]interface{}, error) {
+	var obj map[string]interface{}
+	err := json.Unmarshal([]byte(body), &obj)
 	if err != nil {
-		log.Println(delResp)
-		return err
+		return nil, err
+	}
+	return obj, nil
+}
+
+func getMessageID(ctx context.Context, msg map[string]interface{}) (string, error) {
+	mail, ok := msg["mail"].(map[string]interface{})
+	if !ok {
+		err := fmt.Errorf("%s", "Error parsing mail object while retrieving messageId")
+		log.Println(err)
+		return "", err
 	}
 
-	if len(errList) != 0 {
-		return errList[0]
+	messageID, ok := mail["messageId"].(string)
+	if !ok {
+		err := fmt.Errorf("%s", "Error asserting messageId")
+		log.Println(err)
+		return "", err
 	}
 
-	return nil
+	return messageID, nil
 }
 
 func getS3SourcePath(ctx context.Context, msg map[string]interface{}) (string, string, error) {
@@ -180,13 +154,4 @@ func getS3DestinationPath(ctx context.Context, msg map[string]interface{}) ([]st
 	}
 
 	return paths, filename, nil
-}
-
-func parseJSON(ctx context.Context, body string) (map[string]interface{}, error) {
-	var obj map[string]interface{}
-	err := json.Unmarshal([]byte(body), &obj)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
 }

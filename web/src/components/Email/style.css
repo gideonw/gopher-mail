@@ -4,16 +4,22 @@
   flex-direction: column;
   background-color: rgba(66, 97, 117, 0.664);
   color: white;
-  border-radius: 0px 5px 5px 0px;
 
+  border-radius: 5px;
   padding-top: 10px;
   margin: 0px;
   margin-left: 5px;
 }
 .email {
-  padding: 0px 10px 10px 10px;
-  margin: 0px;
   flex: 1 0 auto;
+
+  padding: 4px 10px 4px 10px;
+  background-color: rgba(247, 253, 255, 0.8);
+  color: black;
+  margin: 0px;
+  margin-left: 5px;
+  margin-right: 5px;
+  border-radius: 5px;
 }
 
 .email li {
@@ -25,8 +31,28 @@
 
 .email-body {
   display: block;
-  padding: 0px 10px 10px 10px;
-  margin: 0px;
-  width: 250px;
-  color: white;
+
+  padding: 4px 10px 4px 10px;
+  background-color: rgba(247, 253, 255, 0.8);
+  color: black;
+  margin: 10px;
+  margin-left: 5px;
+  margin-right: 5px;
+  border-radius: 5px;
+}
+
+.email-actions {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: row;
+}
+
+.email-actions div {
+  margin-left: 15px;
+  margin-bottom: 10px;
+}
+
+.email-actions div:hover {
+  text-decoration: underline;
+  cursor: pointer;
 }
