@@ -20,8 +20,7 @@ const Email = () => {
     axios
       .get(`https://gps.gideonw.xyz/api/gideon/email/${messageID}`)
       .then((result) => {
-        setEmail(result.data.email);
-        console.log(result.data.email);
+        setEmail(result.data.Email);
         setIsLoaded(true);
         setIsLoading(false);
       });
@@ -67,7 +66,9 @@ const Email = () => {
           <li>From: {email.From[0].Address}</li>
           <li>To: {email.To[0].Address}</li>
         </ul>
-        <div className="email-body">{email.TextBody}</div>
+        <div className="email-body">
+          <pre>{email.TextBody}</pre>
+        </div>
       </div>
     );
   }

@@ -9,10 +9,11 @@ const EmailList = (props) => {
 
   let emailList = [];
   _.mapKeys(props.emails, (email, messageID) => {
-    console.log(messageID);
     emailList.push(
       <Link key={messageID} to={`${url}/${messageID}`}>
-        <li>{messageID}</li>
+        <li>
+          {email.Date} - {email.Subject}
+        </li>
       </Link>
     );
   });

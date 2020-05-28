@@ -20,10 +20,8 @@ function Mailbox() {
     if (isLoaded || loading) return;
     setIsLoading(true);
     axios.get("https://gps.gideonw.xyz/api/gideon/emails").then((result) => {
-      console.log(result.data);
-
       _.forEach(result.data.emails, (value) => {
-        emails[value] = {};
+        emails[value.MessageID] = value;
         setEmails(emails);
       });
       setIsLoaded(true);
