@@ -7,4 +7,5 @@ require (
 	github.com/aws/aws-lambda-go v1.16.0 // indirect
 	github.com/aws/aws-sdk-go v1.31.2 // indirect
 	github.com/aws/aws-sdk-go-v2 v0.22.0 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 )

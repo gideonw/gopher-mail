@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -93,6 +94,33 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 			},
 				email,
 			), nil
+		}
+	case "POST":
+		switch event.Resource {
+		case "/api/auth/login":
+			payload := event.Body
+			if event.IsBase64Encoded {
+				decoded, err := base64.StdEncoding.DecodeString(payload)
+				if err != nil {
+					return buildErrorResponse(ctx, err), err
+				}
+				payload = string(decoded)
+			}
+
+			cookies, err := login(ctx, event.Headers, payload)
+			if err != nil {
+				log.Println(err)
+				return buildErrorResponse(ctx, err), err
+			}
+
+			res := events.APIGatewayProxyResponse{
+				StatusCode:        200,
+				MultiValueHeaders: cookies,
+			}
+
+			fmt.Printf("%#v", res)
+
+			return res, nil
 		}
 	}
 

@@ -58,6 +58,7 @@ locals {
   mailman_routes = [
     "GET /api/{userID}/emails",
     "GET /api/{userID}/email/{emailID}",
+    "POST /api/auth/login",
   ]
 
   tags = {
@@ -236,7 +237,7 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
   ordered_cache_behavior {
     target_origin_id = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}"
     path_pattern     = "/api/*"
-    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods  = ["HEAD", "DELETE", "POST", "GET", "OPTIONS", "PUT", "PATCH"]
     cached_methods   = ["GET", "HEAD"]
 
     forwarded_values {
@@ -245,6 +246,13 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
       cookies {
         forward = "none"
       }
+
+      headers = [
+        "Origin",
+        "Access-Control-Request-Headers",
+        "Access-Control-Request-Method",
+        "Authorization",
+      ]
     }
 
     viewer_protocol_policy = "redirect-to-https"

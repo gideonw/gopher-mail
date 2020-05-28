@@ -9,7 +9,7 @@ env GOOS=linux GOARCH=amd64 go build -o ../bin/postmaster main.go sns.go email.g
 echo "[INFO] Building mailman..."
 cd ../mailman
 rm ../bin/mailman 2> /dev/null
-env GOOS=linux GOARCH=amd64 go build -o ../bin/mailman main.go s3.go
+env GOOS=linux GOARCH=amd64 go build -o ../bin/mailman main.go s3.go auth.go
 
 echo "[INFO] Building mailtruck..."
 cd ../mailtruck
