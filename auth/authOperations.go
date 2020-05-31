@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
@@ -22,7 +22,8 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-func login(ctx context.Context, headers map[string]string, body string) (map[string][]string, error) {
+// Login ...
+func Login(ctx context.Context, domain string, headers map[string]string, body string) (map[string][]string, error) {
 	loginCreds := LoginRequest{}
 
 	err := json.Unmarshal([]byte(body), &loginCreds)
@@ -94,7 +95,8 @@ func signNewToken(username string) (string, error) {
 	return ss, nil
 }
 
-func wellKnownOpenIDConfig() (string, error) {
+// WellKnownOpenIDConfig OpenID standard config
+func WellKnownOpenIDConfig() (string, error) {
 	iss := "https://gps.gideonw.xyz"
 	openID := OpenIDConfig{
 		Issuer:                 iss,
@@ -112,7 +114,8 @@ func wellKnownOpenIDConfig() (string, error) {
 	return string(buf), nil
 }
 
-func wellKnownJWKSJSON() string {
+// WellKnownJWKSJSON OpenID standard public JWT signature keys
+func WellKnownJWKSJSON() (string, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return "", err
@@ -120,7 +123,7 @@ func wellKnownJWKSJSON() string {
 
 	pubJWK, err := jwk.New(key.Public())
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	jwks := JWKS{

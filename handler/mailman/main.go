@@ -93,7 +93,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				payload,
 			), nil
 		case "/api/{userID}/emails":
-			emails, err := email.ListEmails(ctx, event.PathParameters["userID"])
+			emails, err := email.ListEmails(ctx, s3Client, mailboxBucket, mailboxPrefix, event.PathParameters["userID"])
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -106,7 +106,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 			), nil
 
 		case "/api/{userID}/email/{emailID}":
-			email, err := email.GetEmailByID(ctx, event.PathParameters["userID"], event.PathParameters["emailID"])
+			email, err := email.GetEmailByID(ctx, s3Client, mailboxBucket, mailboxPrefix, event.PathParameters["userID"], event.PathParameters["emailID"])
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -130,7 +130,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				payload = string(decoded)
 			}
 
-			cookies, err := auth.Login(ctx, event.Headers, payload)
+			cookies, err := auth.Login(ctx, domain, event.Headers, payload)
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err

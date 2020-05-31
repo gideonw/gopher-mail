@@ -10,9 +10,10 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-func ParseEvent(ctx context.Context, record events.SNSEventRecord) (emailToSort, error) {
+// ParseEvent take and SNS event and generates a move operation on the given subject email
+func ParseEvent(ctx context.Context, domain string, record events.SNSEventRecord) (MoveOperation, error) {
 	log.Printf("[parseEvent] %s - %s\n", record.SNS.MessageID, record.SNS.Subject)
-	eventEmail := emailToSort{
+	eventEmail := MoveOperation{
 		Errored: true,
 	}
 
@@ -38,7 +39,7 @@ func ParseEvent(ctx context.Context, record events.SNSEventRecord) (emailToSort,
 		return eventEmail, err
 	}
 
-	eventEmail.DestPrefixes, eventEmail.DestObjectKey, err = getS3DestinationPath(ctx, msg)
+	eventEmail.DestPrefixes, eventEmail.DestObjectKey, err = getS3DestinationPath(ctx, domain, msg)
 	if err != nil {
 		log.Println(err)
 		return eventEmail, err
@@ -111,7 +112,7 @@ func getS3SourcePath(ctx context.Context, msg map[string]interface{}) (string, s
 
 // getS3DestinationPath takes the message and extracts the fields required to compute the paths
 // returns list of 'to' emails and new path
-func getS3DestinationPath(ctx context.Context, msg map[string]interface{}) ([]string, string, error) {
+func getS3DestinationPath(ctx context.Context, domain string, msg map[string]interface{}) ([]string, string, error) {
 	paths := []string{}
 	filename := ""
 
@@ -150,7 +151,7 @@ func getS3DestinationPath(ctx context.Context, msg map[string]interface{}) ([]st
 			return nil, filename, fmt.Errorf("%s", "No emails match our root domain")
 		}
 	} else {
-		return nil, filename, fmt.Errorf("%s", "Error asserting destination", mailBody["destination"])
+		return nil, filename, fmt.Errorf("%s: %#v", "Error asserting destination", mailBody["destination"])
 	}
 
 	return paths, filename, nil

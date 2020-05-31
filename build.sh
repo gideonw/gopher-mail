@@ -2,20 +2,20 @@
 
 echo "[INFO] Building postmaster..."
 
-cd postmaster
-rm ../bin/postmaster 2> /dev/null
-env GOOS=linux GOARCH=amd64 go build -o ../bin/postmaster main.go sns.go email.go
+cd ./handler/postmaster
+rm ../../bin/postmaster 2> /dev/null
+env GOOS=linux GOARCH=amd64 go build -o ../../bin/postmaster main.go
 
 echo "[INFO] Building mailman..."
-cd ../mailman
-rm ../bin/mailman 2> /dev/null
-env GOOS=linux GOARCH=amd64 go build -o ../bin/mailman main.go s3.go auth.go
+cd ../../handler/mailman
+rm ../../bin/mailman 2> /dev/null
+env GOOS=linux GOARCH=amd64 go build -o ../../bin/mailman main.go
 
 echo "[INFO] Building mailtruck..."
-cd ../mailtruck
-rm ../bin/mailtruck 2> /dev/null
-env GOOS=linux GOARCH=amd64 go build -o ../bin/mailtruck main.go
-cd ../
+cd ../../handler/mailtruck
+rm ../../bin/mailtruck 2> /dev/null
+env GOOS=linux GOARCH=amd64 go build -o ../../bin/mailtruck main.go
+cd ../../
 
 CMD=zip
 if [[ "$OSTYPE" == "msys" ]]; then

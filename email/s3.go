@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func getEmailByID(ctx context.Context, userID, ID string) (string, error) {
+func GetEmailByID(ctx context.Context, s3Client *s3.Client, mailboxBucket, mailboxPrefix, userID, ID string) (string, error) {
 	getInput := &s3.GetObjectInput{
 		Bucket: aws.String(mailboxBucket),
 		Key:    aws.String(mailboxPrefix + "/" + userID + "/" + ID + ".json"),
@@ -48,7 +48,7 @@ type Meta struct {
 type MetaMultiMap map[string][]Meta
 
 // listEmails in the user's mailbox sitting in S3, as JSON
-func listEmails(ctx context.Context, userID string) (string, error) {
+func ListEmails(ctx context.Context, s3Client *s3.Client, mailboxBucket, mailboxPrefix, userID string) (string, error) {
 	prefix := mailboxPrefix + "/" + userID
 
 	listInput := &s3.ListObjectsV2Input{

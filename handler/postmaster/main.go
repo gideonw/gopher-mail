@@ -21,18 +21,6 @@ var mailboxBucket string
 var mailboxPrefix string
 var postOfficePrefix string
 
-type emailToSort struct {
-	MessageID string
-
-	SourceBucket    string
-	SourceObjectKey string
-
-	DestPrefixes  []string
-	DestObjectKey string
-
-	Errored bool
-}
-
 func init() {
 	domain = os.Getenv("DOMAIN")
 	mailboxBucket = os.Getenv("MAILBOX_BUCKET")
@@ -55,13 +43,13 @@ func init() {
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(ctx context.Context, event events.SNSEvent) error {
 	var lastErr error
-	emailsToProcess := []emailToSort{}
+	emailsToProcess := []email.MoveOperation{}
 
 	for i := range event.Records {
 		record := event.Records[i]
 
 		// Accumulate emails in the triggering event
-		email, err := email.ParseEvent(ctx, record)
+		email, err := email.ParseEvent(ctx, domain, record)
 		if err != nil {
 			log.Println(err)
 			lastErr = err
@@ -70,7 +58,7 @@ func Handler(ctx context.Context, event events.SNSEvent) error {
 	}
 
 	// Retrieve all of the emails in the `_errored` folder for reprocessing
-	erroredEmails, err := email.LoadErroredEmails(ctx)
+	erroredEmails, err := email.LoadErroredEmails(ctx, s3Client, mailboxBucket, mailboxPrefix)
 	if err != nil {
 		log.Println(err)
 		lastErr = err
@@ -80,7 +68,7 @@ func Handler(ctx context.Context, event events.SNSEvent) error {
 
 	// Sort the emails into their mailboxes
 	for i := range emailsToProcess {
-		err = email.SortEmailIntoMailbox(ctx, emailsToProcess[i])
+		err = email.SortEmailIntoMailbox(ctx, s3Client, mailboxBucket, mailboxPrefix, emailsToProcess[i])
 		if err != nil {
 			log.Println(err)
 			lastErr = err

@@ -16,15 +16,28 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-const addressRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_()*'.].*`)
+var addressRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_()*'.].*`)
+
+// MoveOperation defines an email to sort
+type MoveOperation struct {
+	MessageID string
+
+	SourceBucket    string
+	SourceObjectKey string
+
+	DestPrefixes  []string
+	DestObjectKey string
+
+	Errored bool
+}
 
 // SortEmailIntoMailbox for the given users in the To list
-func SortEmailIntoMailbox(ctx context.Context, email emailToSort) error {
+func SortEmailIntoMailbox(ctx context.Context, s3Client *s3.Client, mailboxBucket, mailboxPrefix string, email MoveOperation) error {
 	var errList []error
 
 	for _, prefix := range email.DestPrefixes {
 		destObjectKey := mailboxPrefix + "/" + prefix + "/" + email.DestObjectKey
-		err := processEmail(ctx, email.MessageID, email.SourceBucket, email.SourceObjectKey, destObjectKey)
+		err := processEmail(ctx, s3Client, mailboxBucket, email.MessageID, email.SourceBucket, email.SourceObjectKey, destObjectKey)
 		if err != nil {
 			// Log the error and mark the email as errored
 			log.Println(err)
@@ -34,7 +47,7 @@ func SortEmailIntoMailbox(ctx context.Context, email emailToSort) error {
 
 	// Attempt to copy errored emails to _errored bucket.
 	if email.Errored {
-		err := copyErroredEmail(ctx, email.SourceBucket, email.SourceObjectKey, email.DestObjectKey)
+		err := copyErroredEmail(ctx, s3Client, mailboxBucket, mailboxPrefix, email.SourceBucket, email.SourceObjectKey, email.DestObjectKey)
 		if err != nil {
 			log.Println("Failed to copy errored email to the '_errored' mailbox, skipping delete")
 			log.Println(email)
@@ -66,7 +79,7 @@ func SortEmailIntoMailbox(ctx context.Context, email emailToSort) error {
 	return nil
 }
 
-func processEmail(ctx context.Context, messageID, srcBucket, srcObjectKey, destObjectKey string) error {
+func processEmail(ctx context.Context, s3Client *s3.Client, mailboxBucket, messageID, srcBucket, srcObjectKey, destObjectKey string) error {
 	getInput := &s3.GetObjectInput{
 		Bucket: aws.String(srcBucket),
 		Key:    aws.String(srcObjectKey),
@@ -136,8 +149,8 @@ func processEmail(ctx context.Context, messageID, srcBucket, srcObjectKey, destO
 }
 
 // LoadErroredEmails from the _errored mailbox
-func LoadErroredEmails(ctx context.Context) ([]emailToSort, error) {
-	ret := []emailToSort{}
+func LoadErroredEmails(ctx context.Context, s3Client *s3.Client, mailboxBucket, mailboxPrefix string) ([]MoveOperation, error) {
+	ret := []MoveOperation{}
 
 	listInput := &s3.ListObjectsV2Input{
 		Bucket: aws.String(mailboxBucket),
@@ -152,9 +165,9 @@ func LoadErroredEmails(ctx context.Context) ([]emailToSort, error) {
 	}
 
 	for i := range result.Contents {
-		// TODO: Load errored email, parse it for the To addresses, and then set the Dest fields on emailToSort
+		// TODO: Load errored email, parse it for the To addresses, and then set the Dest fields on MoveOperation
 
-		ret = append(ret, emailToSort{
+		ret = append(ret, MoveOperation{
 			MessageID: *result.Contents[i].Key,
 
 			SourceBucket:    mailboxBucket,
@@ -166,7 +179,7 @@ func LoadErroredEmails(ctx context.Context) ([]emailToSort, error) {
 }
 
 // copyErroredEmail is called when an email has failed and we want to copy it into the `_errored` mailbox
-func copyErroredEmail(ctx context.Context, srcBucket, srcObjectKey, destKey string) error {
+func copyErroredEmail(ctx context.Context, s3Client *s3.Client, mailboxBucket, mailboxPrefix, srcBucket, srcObjectKey, destKey string) error {
 	sourcePath := srcBucket + "/" + srcObjectKey
 	destBucketPath := mailboxPrefix + "/_errored/" + destKey
 
