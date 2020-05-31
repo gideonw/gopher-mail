@@ -59,6 +59,8 @@ locals {
     "GET /api/{userID}/emails",
     "GET /api/{userID}/email/{emailID}",
     "POST /api/auth/login",
+    "GET /.well-known/openid-configuration",
+    "GET /api/auth/jwks.json",
   ]
 
   tags = {
@@ -218,6 +220,24 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
     }
   }
 
+  origin {
+    domain_name = replace(aws_apigatewayv2_api.gopher_mail.api_endpoint, "https://", "")
+    origin_id   = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}-well-known"
+
+    custom_header {
+      name  = random_string.cf_verify_header.result
+      value = random_string.cf_verify_value.result
+    }
+
+    custom_origin_config {
+      http_port  = "80"
+      https_port = "443"
+
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
   default_cache_behavior {
     target_origin_id = local.s3_origin_id
     allowed_methods  = ["GET", "HEAD"]
@@ -253,6 +273,23 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
         "Access-Control-Request-Method",
         "Authorization",
       ]
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+  }
+
+  ordered_cache_behavior {
+    target_origin_id = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}-well-known"
+    path_pattern     = "/.well-known/*"
+    allowed_methods  = ["HEAD", "GET", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
     }
 
     viewer_protocol_policy = "redirect-to-https"

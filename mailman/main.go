@@ -69,6 +69,30 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	switch event.HTTPMethod {
 	case "GET":
 		switch event.Resource {
+		case "/.well-known/openid-configuration":
+			payload, err := wellKnownOpenIDConfig()
+			if err != nil {
+				log.Println(err)
+				return buildErrorResponse(ctx, err), err
+			}
+
+			return buildOKResponse(ctx, false, map[string]string{
+				"Content-Type": "application/json",
+			},
+				payload,
+			), nil
+		case "/auth/jwks.json":
+			payload, err := wellKnownJWKSJSON()
+			if err != nil {
+				log.Println(err)
+				return buildErrorResponse(ctx, err), err
+			}
+
+			return buildOKResponse(ctx, false, map[string]string{
+				"Content-Type": "application/json",
+			},
+				payload,
+			), nil
 		case "/api/{userID}/emails":
 			emails, err := listEmails(ctx, event.PathParameters["userID"])
 			if err != nil {

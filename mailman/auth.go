@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gideonw/gopher-mail/gms-common/auth"
+	"github.com/lestrrat-go/jwx/jwk"
 )
 
 const authCookie = "gms-auth-token"
@@ -89,4 +93,47 @@ func signNewToken(username string) (string, error) {
 	fmt.Printf("%v", ss)
 
 	return ss, nil
+}
+
+func wellKnownOpenIDConfig() (string, error) {
+	iss := "https://gps.gideonw.xyz"
+	openID := auth.OpenIDConfig{
+		Issuer:                 iss,
+		AuthorizationEndpoint:  iss + "/api/auth/authorize",
+		TokenEndpoint:          iss + "/api/auth/token",
+		JWKSURI:                iss + "/api/auth/jwks.json",
+		ResponseTypesSupported: []string{},
+	}
+
+	buf, err := json.Marshal(openID)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buf), nil
+}
+
+func wellKnownJWKSJSON() string {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", err
+	}
+
+	pubJWK, err := jwk.New(key.Public())
+	if err != nil {
+		return "", nil
+	}
+
+	jwks := auth.JWKS{
+		Keys: []jwk.Key{
+			pubJWK,
+		},
+	}
+
+	buf, err := json.Marshal(jwks)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buf), nil
 }
