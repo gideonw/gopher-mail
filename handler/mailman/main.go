@@ -54,21 +54,17 @@ func main() {
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func Handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	buf, _ := json.Marshal(event)
 	log.Println(string(buf))
+	log.Println(event)
 
 	// verify request is from cloudfront
-	if event.Headers[verifyHeader] != verifyValue {
-		return events.APIGatewayProxyResponse{
-			StatusCode: 403,
-		}, nil
-	}
-
-	switch event.HTTPMethod {
-	case "GET":
-		switch event.Resource {
-		case "/.well-known/openid-configuration":
+	cfHeaderValue, cfHeaderOk := event.Headers[verifyHeader]
+	if cfHeaderOk && cfHeaderValue == verifyValue {
+		// Handle routes
+		switch event.RouteKey {
+		case "GET /.well-known/openid-configuration":
 			payload, err := auth.WellKnownOpenIDConfig()
 			if err != nil {
 				log.Println(err)
@@ -80,7 +76,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 			},
 				payload,
 			), nil
-		case "/auth/jwks.json":
+		case "GET /api/auth/jwks.json":
 			payload, err := auth.WellKnownJWKSJSON()
 			if err != nil {
 				log.Println(err)
@@ -92,7 +88,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 			},
 				payload,
 			), nil
-		case "/api/{userID}/emails":
+		case "GET /api/{userID}/emails":
 			emails, err := email.ListEmails(ctx, s3Client, mailboxBucket, mailboxPrefix, event.PathParameters["userID"])
 			if err != nil {
 				log.Println(err)
@@ -105,7 +101,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				emails,
 			), nil
 
-		case "/api/{userID}/email/{emailID}":
+		case "GET /api/{userID}/email/{emailID}":
 			email, err := email.GetEmailByID(ctx, s3Client, mailboxBucket, mailboxPrefix, event.PathParameters["userID"], event.PathParameters["emailID"])
 			if err != nil {
 				log.Println(err)
@@ -117,10 +113,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 			},
 				email,
 			), nil
-		}
-	case "POST":
-		switch event.Resource {
-		case "/api/auth/login":
+		case "POST /api/auth/login":
 			payload := event.Body
 			if event.IsBase64Encoded {
 				decoded, err := base64.StdEncoding.DecodeString(payload)
@@ -136,37 +129,48 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				return buildErrorResponse(ctx, err), err
 			}
 
-			res := events.APIGatewayProxyResponse{
-				StatusCode:        200,
-				MultiValueHeaders: cookies,
+			res := events.APIGatewayV2HTTPResponse{
+				StatusCode: 200,
+				Cookies:    cookies,
 			}
 
-			fmt.Printf("%#v", res)
+			buf, _ := json.Marshal(res)
+			log.Println(string(buf))
 
 			return res, nil
+		default:
+			return events.APIGatewayV2HTTPResponse{
+				StatusCode: 404,
+				Body:       "Error: 404 Not found. " + domain + " path: " + event.RawPath,
+			}, nil
 		}
+	} else if !cfHeaderOk {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 502,
+			Body:       fmt.Sprintf("Error: %s", "Unable to verify if request came from CloudFront"),
+		}, nil
+	} else {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 403,
+			Body:       fmt.Sprintf("Headers[%s]: %s == %s", verifyHeader, cfHeaderValue, verifyValue),
+		}, nil
 	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 500,
-		Body:       "Hello world! Go Boom From: " + domain + " path: " + event.Path,
-	}, nil
 }
 
-func buildErrorResponse(ctx context.Context, err error) events.APIGatewayProxyResponse {
-	return events.APIGatewayProxyResponse{
+func buildErrorResponse(ctx context.Context, err error) events.APIGatewayV2HTTPResponse {
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: 500,
 		Body:       fmt.Sprintf("%s", err),
 	}
 }
 
-func buildOKResponse(ctx context.Context, cache bool, headers map[string]string, body string) events.APIGatewayProxyResponse {
+func buildOKResponse(ctx context.Context, cache bool, headers map[string]string, body string) events.APIGatewayV2HTTPResponse {
 	finalHeaders := headers
 	if !cache {
 		finalHeaders["Cache-Control"] = "private,s-maxage=15"
 	}
 
-	return events.APIGatewayProxyResponse{
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: 200,
 		Headers:    finalHeaders,
 		Body:       body,
