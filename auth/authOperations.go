@@ -6,8 +6,6 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -23,54 +21,25 @@ type LoginRequest struct {
 }
 
 // Login ...
-func Login(ctx context.Context, domain string, headers map[string]string, body string) ([]string, error) {
+func Login(ctx context.Context, domain string, headers map[string]string, body string) (string, error) {
 	loginCreds := LoginRequest{}
 
 	err := json.Unmarshal([]byte(body), &loginCreds)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// TODO: Verify credentials
 	if loginCreds.Username != "gideonw" || loginCreds.Password != "test" {
-		return nil, fmt.Errorf("Error: passwrod incorrect for %s", loginCreds.Username)
+		return "", fmt.Errorf("Error: passwrod incorrect for %s", loginCreds.Username)
 	}
-
-	setCookieHeaders := []string{}
 
 	token, err := signNewToken(loginCreds.Username)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	authToken := http.Cookie{
-		Name:   authCookie,
-		Domain: "gps." + domain,
-		Path:   "/",
-		Value:  token,
-
-		Expires:  time.Now().Add(14 * 24 * time.Hour),
-		Secure:   true,
-		MaxAge:   1209600, // 14 days
-		SameSite: http.SameSiteStrictMode,
-		HttpOnly: true,
-	}
-	setCookieHeaders = append(setCookieHeaders, authToken.String())
-
-	loggedIn := http.Cookie{
-		Name:   loggedInCookie,
-		Domain: "gps." + domain,
-		Path:   "/",
-		Value:  "true",
-
-		Expires:  time.Now().Add(14 * 24 * time.Hour),
-		Secure:   true,
-		MaxAge:   1209600, // 14 days
-		SameSite: http.SameSiteStrictMode,
-	}
-	setCookieHeaders = append(setCookieHeaders, loggedIn.String())
-
-	return setCookieHeaders, nil
+	return token, nil
 }
 
 func signNewToken(username string) (string, error) {

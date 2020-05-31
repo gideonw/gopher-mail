@@ -123,7 +123,7 @@ func Handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 				payload = string(decoded)
 			}
 
-			cookies, err := auth.Login(ctx, domain, event.Headers, payload)
+			token, err := auth.Login(ctx, domain, event.Headers, payload)
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -131,7 +131,7 @@ func Handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 
 			res := events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				Cookies:    cookies,
+				Body:       token,
 			}
 
 			buf, _ := json.Marshal(res)
