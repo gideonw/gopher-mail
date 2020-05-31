@@ -1,0 +1,29 @@
+@emailID = a36n6552jrq9pupipdlffg8s8eheoe92jfrm8mg1
+
+###
+
+POST {{host}}/api/auth/login HTTP/2.0
+Content-Type: application/json
+
+{
+    "username":"{{userID}}",
+    "password":"test"
+}
+
+###
+
+GET {{host}}/.well-known/openid-configuration HTTP/2.0
+
+###
+
+GET {{host}}/api/auth/jwks.json HTTP/2.0
+
+###
+
+GET {{host}}/api/{{userID}}/emails HTTP/2.0
+
+###
+
+GET {{host}}/api/{{userID}}/email/{{emailID}} HTTP/2.0
+
+###
