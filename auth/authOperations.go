@@ -23,7 +23,7 @@ type LoginRequest struct {
 }
 
 // Login ...
-func Login(ctx context.Context, domain string, headers map[string]string, body string) (map[string][]string, error) {
+func Login(ctx context.Context, domain string, headers map[string]string, body string) ([]string, error) {
 	loginCreds := LoginRequest{}
 
 	err := json.Unmarshal([]byte(body), &loginCreds)
@@ -36,7 +36,6 @@ func Login(ctx context.Context, domain string, headers map[string]string, body s
 		return nil, fmt.Errorf("Error: passwrod incorrect for %s", loginCreds.Username)
 	}
 
-	ret := make(map[string][]string)
 	setCookieHeaders := []string{}
 
 	token, err := signNewToken(loginCreds.Username)
@@ -71,9 +70,7 @@ func Login(ctx context.Context, domain string, headers map[string]string, body s
 	}
 	setCookieHeaders = append(setCookieHeaders, loggedIn.String())
 
-	ret["Set-Cookie"] = setCookieHeaders
-
-	return ret, nil
+	return setCookieHeaders, nil
 }
 
 func signNewToken(username string) (string, error) {
