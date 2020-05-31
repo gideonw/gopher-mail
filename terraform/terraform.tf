@@ -177,12 +177,14 @@ resource "aws_s3_bucket_policy" "gopher_mail_web" {
 resource "random_string" "cf_verify_header" {
   length  = 16
   special = false
+  upper   = false
 }
 
 resource "random_string" "cf_verify_value" {
   length           = 16
   special          = true
   override_special = ")(-+*%$#"
+
 }
 
 resource "aws_cloudfront_distribution" "gopher_mail" {
@@ -798,9 +800,10 @@ resource "aws_apigatewayv2_stage" "default" {
 resource "aws_apigatewayv2_integration" "mailman_lambda" {
   api_id = aws_apigatewayv2_api.gopher_mail.id
 
-  integration_type   = "AWS_PROXY"
-  integration_method = "POST"
-  integration_uri    = aws_lambda_function.mailman.invoke_arn
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.mailman.invoke_arn
+  payload_format_version = "2.0"
 
   lifecycle {
     ignore_changes = [passthrough_behavior]
