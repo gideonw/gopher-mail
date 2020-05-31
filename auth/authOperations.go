@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gideonw/gopher-mail/gms-common/auth"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
@@ -97,7 +96,7 @@ func signNewToken(username string) (string, error) {
 
 func wellKnownOpenIDConfig() (string, error) {
 	iss := "https://gps.gideonw.xyz"
-	openID := auth.OpenIDConfig{
+	openID := OpenIDConfig{
 		Issuer:                 iss,
 		AuthorizationEndpoint:  iss + "/api/auth/authorize",
 		TokenEndpoint:          iss + "/api/auth/token",
@@ -124,7 +123,7 @@ func wellKnownJWKSJSON() string {
 		return "", nil
 	}
 
-	jwks := auth.JWKS{
+	jwks := JWKS{
 		Keys: []jwk.Key{
 			pubJWK,
 		},

@@ -7,18 +7,19 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"github.com/gideonw/gopher-mail/auth"
+	"github.com/gideonw/gopher-mail/email"
 )
 
 var invokeCount = 0
 var s3Client *s3.Client
-var addressRegex *regexp.Regexp
 
 // ENV variables
 var domain string
@@ -36,8 +37,6 @@ func init() {
 	mailboxPrefix = os.Getenv("MAILBOX_PREFIX")
 	verifyHeader = os.Getenv("CF_VERIFY_HEADER")
 	verifyValue = os.Getenv("CF_VERIFY_VALUE")
-
-	addressRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_()*'.].*`)
 
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
@@ -70,7 +69,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	case "GET":
 		switch event.Resource {
 		case "/.well-known/openid-configuration":
-			payload, err := wellKnownOpenIDConfig()
+			payload, err := auth.WellKnownOpenIDConfig()
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -82,7 +81,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				payload,
 			), nil
 		case "/auth/jwks.json":
-			payload, err := wellKnownJWKSJSON()
+			payload, err := auth.WellKnownJWKSJSON()
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -94,7 +93,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				payload,
 			), nil
 		case "/api/{userID}/emails":
-			emails, err := listEmails(ctx, event.PathParameters["userID"])
+			emails, err := email.ListEmails(ctx, event.PathParameters["userID"])
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -107,7 +106,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 			), nil
 
 		case "/api/{userID}/email/{emailID}":
-			email, err := getEmailByID(ctx, event.PathParameters["userID"], event.PathParameters["emailID"])
+			email, err := email.GetEmailByID(ctx, event.PathParameters["userID"], event.PathParameters["emailID"])
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
@@ -131,7 +130,7 @@ func Handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 				payload = string(decoded)
 			}
 
-			cookies, err := login(ctx, event.Headers, payload)
+			cookies, err := auth.Login(ctx, event.Headers, payload)
 			if err != nil {
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err

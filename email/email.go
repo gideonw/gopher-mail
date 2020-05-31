@@ -1,4 +1,4 @@
-package main
+package email
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/DusanKasan/parsemail"
@@ -15,7 +16,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func sortEmailIntoMailbox(ctx context.Context, email emailToSort) error {
+const addressRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_()*'.].*`)
+
+// SortEmailIntoMailbox for the given users in the To list
+func SortEmailIntoMailbox(ctx context.Context, email emailToSort) error {
 	var errList []error
 
 	for _, prefix := range email.DestPrefixes {
@@ -131,7 +135,8 @@ func processEmail(ctx context.Context, messageID, srcBucket, srcObjectKey, destO
 	return nil
 }
 
-func loadErroredEmails(ctx context.Context) ([]emailToSort, error) {
+// LoadErroredEmails from the _errored mailbox
+func LoadErroredEmails(ctx context.Context) ([]emailToSort, error) {
 	ret := []emailToSort{}
 
 	listInput := &s3.ListObjectsV2Input{

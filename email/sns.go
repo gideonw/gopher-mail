@@ -1,4 +1,4 @@
-package main
+package email
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-func parseEvent(ctx context.Context, record events.SNSEventRecord) (emailToSort, error) {
+func ParseEvent(ctx context.Context, record events.SNSEventRecord) (emailToSort, error) {
 	log.Printf("[parseEvent] %s - %s\n", record.SNS.MessageID, record.SNS.Subject)
 	eventEmail := emailToSort{
 		Errored: true,

@@ -1,4 +1,4 @@
-package main
+package email
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/DusanKasan/parsemail"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -38,15 +37,15 @@ type emailStorage struct {
 	Email     parsemail.Email
 }
 
-// EmailMeta contians a snapshot of an email for the frontend
-type EmailMeta struct {
+// Meta contians a snapshot of an email for the frontend
+type Meta struct {
 	MessageID string
 	Subject   string
 	Date      time.Time
 }
 
-// EmailMetaList represents a simple json object with a single key holding the emails
-type EmailMetaList map[string][]EmailMeta
+// MetaMultiMap represents a simple json object with a single key holding the emails
+type MetaMultiMap map[string][]Meta
 
 // listEmails in the user's mailbox sitting in S3, as JSON
 func listEmails(ctx context.Context, userID string) (string, error) {
@@ -62,8 +61,8 @@ func listEmails(ctx context.Context, userID string) (string, error) {
 		return "", err
 	}
 
-	ret := make(EmailMetaList)
-	ret["emails"] = []EmailMeta{}
+	ret := make(MetaMultiMap)
+	ret["emails"] = []Meta{}
 
 	for i := range result.Contents {
 		if strings.HasSuffix(*result.Contents[i].Key, ".json") {
@@ -86,7 +85,7 @@ func listEmails(ctx context.Context, userID string) (string, error) {
 				return "", err
 			}
 
-			ret["emails"] = append(ret["emails"], EmailMeta{
+			ret["emails"] = append(ret["emails"], Meta{
 				MessageID: email.MessageID,
 				Subject:   email.Email.Subject,
 				Date:      email.Email.Date,
@@ -101,25 +100,4 @@ func listEmails(ctx context.Context, userID string) (string, error) {
 	}
 
 	return string(buf), nil
-}
-
-func checkAwsErr(err error) error {
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				log.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
-			default:
-				log.Println(aerr.Error())
-			}
-		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
-			log.Println(err.Error())
-		}
-
-		return err
-	}
-
-	return nil
 }

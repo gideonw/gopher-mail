@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/gideonw/gopher-mail/email"
 
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -60,7 +61,7 @@ func Handler(ctx context.Context, event events.SNSEvent) error {
 		record := event.Records[i]
 
 		// Accumulate emails in the triggering event
-		email, err := parseEvent(ctx, record)
+		email, err := email.ParseEvent(ctx, record)
 		if err != nil {
 			log.Println(err)
 			lastErr = err
@@ -69,7 +70,7 @@ func Handler(ctx context.Context, event events.SNSEvent) error {
 	}
 
 	// Retrieve all of the emails in the `_errored` folder for reprocessing
-	erroredEmails, err := loadErroredEmails(ctx)
+	erroredEmails, err := email.LoadErroredEmails(ctx)
 	if err != nil {
 		log.Println(err)
 		lastErr = err
@@ -79,7 +80,7 @@ func Handler(ctx context.Context, event events.SNSEvent) error {
 
 	// Sort the emails into their mailboxes
 	for i := range emailsToProcess {
-		err = sortEmailIntoMailbox(ctx, emailsToProcess[i])
+		err = email.SortEmailIntoMailbox(ctx, emailsToProcess[i])
 		if err != nil {
 			log.Println(err)
 			lastErr = err
