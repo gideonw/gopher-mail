@@ -128,13 +128,14 @@ func Handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 				log.Println(err)
 				return buildErrorResponse(ctx, err), err
 			}
+			buf, _ := json.Marshal(token)
 
 			res := events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				Body:       token,
+				Body:       string(buf),
 			}
 
-			buf, _ := json.Marshal(res)
+			buf, _ = json.Marshal(res)
 			log.Println(string(buf))
 
 			return res, nil

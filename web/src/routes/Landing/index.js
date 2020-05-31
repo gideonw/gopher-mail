@@ -30,6 +30,14 @@ class Home extends React.Component {
     this.setState(_.merge(this.state, { auth: { password: e.target.value } }));
   }
 
+  componentDidMount() {
+    let token = localStorage.getItem("gopher-mail-auth-token");
+    console.log("Logged in" + token);
+    if (token) {
+      this.setState(_.merge(this.state, { loggedIn: true }));
+    }
+  }
+
   handleLogin(e) {
     console.log(e);
     e.preventDefault();
@@ -39,6 +47,7 @@ class Home extends React.Component {
       .then((result) => {
         console.log(result);
         if (result.status === 200) {
+          localStorage.setItem("gopher-mail-auth-token", result.data.token);
           this.setState(_.merge(this.state, { loggedIn: true }));
         } else {
           // TODO: error states

@@ -22,3 +22,8 @@ type OpenIDConfig struct {
 type JWKS struct {
 	Keys []jwk.Key `json:"keys"`
 }
+
+// TokenPayload is a simple struct to return the JWT token as json.
+type TokenPayload struct {
+	Token string `json:"token"`
+}

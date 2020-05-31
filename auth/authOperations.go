@@ -21,25 +21,27 @@ type LoginRequest struct {
 }
 
 // Login ...
-func Login(ctx context.Context, domain string, headers map[string]string, body string) (string, error) {
+func Login(ctx context.Context, domain string, headers map[string]string, body string) (TokenPayload, error) {
 	loginCreds := LoginRequest{}
 
 	err := json.Unmarshal([]byte(body), &loginCreds)
 	if err != nil {
-		return "", err
+		return TokenPayload{}, err
 	}
 
 	// TODO: Verify credentials
 	if loginCreds.Username != "gideonw" || loginCreds.Password != "test" {
-		return "", fmt.Errorf("Error: passwrod incorrect for %s", loginCreds.Username)
+		return TokenPayload{}, fmt.Errorf("Error: passwrod incorrect for %s", loginCreds.Username)
 	}
 
 	token, err := signNewToken(loginCreds.Username)
 	if err != nil {
-		return "", err
+		return TokenPayload{}, err
 	}
 
-	return token, nil
+	return TokenPayload{
+		Token: token,
+	}, nil
 }
 
 func signNewToken(username string) (string, error) {
