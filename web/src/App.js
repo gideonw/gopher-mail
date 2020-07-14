@@ -1,8 +1,9 @@
 import React from "react";
-import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+import { BrowserRouter as Router, Route } from "react-router-dom";
 
+import PrivateRoute from "./util/PrivateRoute/PrivateRoute";
 import Header from "./components/Header";
-import Landing from "./routes/Landing";
+import Login from "./routes/Login";
 import Mailbox from "./routes/Mailbox";
 
 import "./App.css";
@@ -10,16 +11,12 @@ import "./App.css";
 function App() {
   return (
     <Router>
-      <div className="App">
+      <div className="App flex flex-col flex-1">
         <Header />
-        <Switch>
-          <Route exact path="/">
-            <Landing />
-          </Route>
-          <Route path="/m">
-            <Mailbox />
-          </Route>
-        </Switch>
+        {/* <PrivateRoute exact path="/" component={Login}>
+        </PrivateRoute> */}
+        <PrivateRoute path="/" component={Mailbox} />
+        <Route exact path="/login" component={Login} />
       </div>
     </Router>
   );
