@@ -59,8 +59,8 @@ locals {
     "GET /api/{userID}/emails",
     "GET /api/{userID}/email/{emailID}",
     "POST /api/auth/login",
-    "GET /.well-known/openid-configuration",
-    "GET /api/auth/jwks.json",
+    "GET /api/auth/logout",
+    "POST /api/auth/register",
   ]
 
   tags = {
@@ -73,6 +73,11 @@ locals {
 
 output "lambda_archive_bucket" {
   value = aws_s3_bucket.lambda_archive.bucket
+}
+
+
+output "gopher_mail_web_bucket" {
+  value = aws_s3_bucket.gopher_mail_web.bucket
 }
 
 output "apigateway_endpoint" {
@@ -222,24 +227,6 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
     }
   }
 
-  origin {
-    domain_name = replace(aws_apigatewayv2_api.gopher_mail.api_endpoint, "https://", "")
-    origin_id   = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}-well-known"
-
-    custom_header {
-      name  = random_string.cf_verify_header.result
-      value = random_string.cf_verify_value.result
-    }
-
-    custom_origin_config {
-      http_port  = "80"
-      https_port = "443"
-
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
-  }
-
   default_cache_behavior {
     target_origin_id = local.s3_origin_id
     allowed_methods  = ["GET", "HEAD"]
@@ -252,6 +239,11 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
         forward = "none"
       }
     }
+
+    min_ttl = 0
+    default_ttl = 0
+    max_ttl = 86400
+    compress = true
 
     viewer_protocol_policy = "redirect-to-https"
   }
@@ -266,7 +258,7 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
       query_string = false
 
       cookies {
-        forward = "none"
+        forward = "all"
       }
 
       headers = [
@@ -275,23 +267,6 @@ resource "aws_cloudfront_distribution" "gopher_mail" {
         "Access-Control-Request-Method",
         "Authorization",
       ]
-    }
-
-    viewer_protocol_policy = "redirect-to-https"
-  }
-
-  ordered_cache_behavior {
-    target_origin_id = "apigateway-${aws_apigatewayv2_api.gopher_mail.id}-well-known"
-    path_pattern     = "/.well-known/*"
-    allowed_methods  = ["HEAD", "GET", "OPTIONS"]
-    cached_methods   = ["GET", "HEAD"]
-
-    forwarded_values {
-      query_string = false
-
-      cookies {
-        forward = "none"
-      }
     }
 
     viewer_protocol_policy = "redirect-to-https"
@@ -817,4 +792,19 @@ resource "aws_apigatewayv2_route" "mailman_routes" {
 
   route_key = element(local.mailman_routes, count.index)
   target    = "integrations/${aws_apigatewayv2_integration.mailman_lambda.id}"
+}
+
+# Dynamo DB for Users and Email data 
+####################################################################################
+resource "aws_dynamodb_table" "users" {
+  name = "gopher-mail-users"
+
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key = "UserID"
+
+  attribute {
+    name = "UserID"
+    type = "S"
+  }
 }
